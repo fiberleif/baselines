@@ -45,6 +45,7 @@ def argsparser():
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
+    parser.add_argument('--reward_coeff', type=float, default=0.1)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
@@ -96,6 +97,7 @@ def main(args):
               args.g_step,
               args.d_step,
               args.policy_entcoeff,
+              arg.reward_coeff
               args.num_timesteps,
               args.save_per_iter,
               args.checkpoint_dir,
@@ -119,7 +121,7 @@ def main(args):
 
 
 def train(env, seed, policy_fn, reward_giver, dataset, algo,
-          g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
+          g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
 
     pretrained_weight = None
@@ -142,6 +144,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
+                       reward_coeff=reward_coeff
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,

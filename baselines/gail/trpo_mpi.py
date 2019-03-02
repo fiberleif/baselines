@@ -20,7 +20,7 @@ from baselines.common.cg import cg
 from baselines.gail.statistics import stats
 
 
-def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
+def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
 
     # Initialize state variables
     t = 0
@@ -69,8 +69,9 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
 
-        rew = reward_giver.get_reward(ob, ac)
         ob, true_rew, new, _ = env.step(ac)
+        rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+
         rews[i] = rew
         true_rews[i] = true_rew
 
@@ -104,7 +105,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 def learn(env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
-          g_step, d_step, entcoeff, save_per_iter,
+          g_step, d_step, entcoeff, reward_coeff, save_per_iter,
           ckpt_dir, log_dir, timesteps_per_batch, task_name,
           gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
@@ -204,7 +205,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
