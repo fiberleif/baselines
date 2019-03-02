@@ -97,7 +97,7 @@ def main(args):
               args.g_step,
               args.d_step,
               args.policy_entcoeff,
-              arg.reward_coeff
+              args.reward_coeff,
               args.num_timesteps,
               args.save_per_iter,
               args.checkpoint_dir,
@@ -144,7 +144,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
-                       reward_coeff=reward_coeff
+                       reward_coeff=reward_coeff,
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
