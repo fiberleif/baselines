@@ -64,7 +64,8 @@ def get_task_name(args):
         task_name += "transition_limitation_%d." % args.traj_limitation
     task_name += args.env_id.split("-")[0]
     task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
-        ".policy_entcoeff_" + str(args.policy_entcoeff) + ".adversary_entcoeff_" + str(args.adversary_entcoeff)
+        ".policy_entcoeff_" + str(args.policy_entcoeff) + ".reward_coeff_" + str(args.reward_coeff) \
+                + ".adversary_entcoeff_" + str(args.adversary_entcoeff)
     task_name += ".seed_" + str(args.seed)
     return task_name
 
