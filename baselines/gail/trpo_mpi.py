@@ -72,7 +72,7 @@ def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
     return paths
 
 
-def evaluate_policy(pi, eval_env, tstart, eval_n_episodes=10, stochastic=False):
+def evaluate_policy(pi, eval_env, epoch, tstart, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
     :param epoch: The epoch number.
@@ -87,6 +87,7 @@ def evaluate_policy(pi, eval_env, tstart, eval_n_episodes=10, stochastic=False):
     total_returns = [path['rewards'].sum() for path in paths]
     episode_lengths = [len(p['rewards']) for p in paths]
 
+    logger.record_tabular('current-epoch', epoch)
     logger.record_tabular('return-average', np.mean(total_returns))
     logger.record_tabular('return-min', np.min(total_returns))
     logger.record_tabular('return-max', np.max(total_returns))
@@ -319,7 +320,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
             saver = tf.train.Saver()
             saver.save(tf.get_default_session(), fname)
         
-        logger.log("********** Iteration %i ************" % iters_so_far)
+        logger.log("********** Epoch %i ************" % epoch)
 
         def fisher_vector_product(p):
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
@@ -403,7 +404,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         vfadam.update(g, vf_stepsize)
 
             # evaluate current policy
-            evaluate_policy(pi, eval_env, tstart)
+            evaluate_policy(pi, eval_env, epoch ,tstart)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
