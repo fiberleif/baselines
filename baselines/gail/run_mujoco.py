@@ -18,6 +18,7 @@ from baselines import bench
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
+from baselines.gail.visualize import VisdomVisualizer
 
 
 def argsparser():
@@ -75,6 +76,10 @@ def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
 
+    # configure visualize
+    visualizer = VisdomVisualizer('guoqing-POfD', args.env_id)
+    visualizer.initialize('return-average', 'blue')
+
     env = gym.make(args.env_id)
     eval_env = gym.make(args.env_id)
 
@@ -112,7 +117,8 @@ def main(args):
               args.pretrained,
               args.BC_max_iter,
               args.num_epochs,
-              task_name
+              visualizer,
+              task_name,
               )
     elif args.task == 'evaluate':
         runner(env,
@@ -130,7 +136,7 @@ def main(args):
 
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, task_name=None):
+          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, task_name=None):
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
@@ -161,6 +167,7 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        gamma=0.995, lam=0.97,
                        vf_iters=5, vf_stepsize=1e-3,
                        num_epochs=num_epochs,
+                       visualizer=visualizer,
                        task_name=task_name)
     else:
         raise NotImplementedError

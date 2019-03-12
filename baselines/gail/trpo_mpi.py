@@ -73,7 +73,7 @@ def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
 
 
 def evaluate_policy(pi, eval_env, epoch, timesteps_per_batch,
-                    tstart, eval_n_episodes=10, stochastic=False):
+                    tstart, visualizer, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
     :param epoch: The epoch number.
@@ -100,6 +100,9 @@ def evaluate_policy(pi, eval_env, epoch, timesteps_per_batch,
     logger.record_tabular("TimeElapsed", time.time() - tstart)
     logger.record_tabular('TimestepsUsed', (epoch + 1) * timesteps_per_batch)
     logger.dump_tabular()
+
+    visualizer.paint('return-average', {'x': (epoch + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
+    visualizer.draw_line('return-average', 'blue')
 
 
 def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
@@ -188,7 +191,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
 def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
           g_step, d_step, entcoeff, reward_coeff, save_per_iter,
-          ckpt_dir, log_dir, timesteps_per_batch, task_name,
+          ckpt_dir, log_dir, timesteps_per_batch, visualizer, task_name,
           gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
           vf_stepsize=3e-4, d_stepsize=3e-4, vf_iters=3,
@@ -406,7 +409,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         vfadam.update(g, vf_stepsize)
 
             # evaluate current policy
-            evaluate_policy(pi, eval_env, epoch, timesteps_per_batch, tstart)
+            evaluate_policy(pi, eval_env, epoch, timesteps_per_batch, tstart, visualizer)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
