@@ -72,7 +72,8 @@ def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
     return paths
 
 
-def evaluate_policy(pi, eval_env, epoch, tstart, eval_n_episodes=10, stochastic=False):
+def evaluate_policy(pi, eval_env, epoch, timesteps_per_batch,
+                    tstart, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
     :param epoch: The epoch number.
@@ -87,7 +88,7 @@ def evaluate_policy(pi, eval_env, epoch, tstart, eval_n_episodes=10, stochastic=
     total_returns = [path['rewards'].sum() for path in paths]
     episode_lengths = [len(p['rewards']) for p in paths]
 
-    logger.record_tabular('current-epoch', epoch)
+    logger.record_tabular('current-epoch', epoch + 1)
     logger.record_tabular('return-average', np.mean(total_returns))
     logger.record_tabular('return-min', np.min(total_returns))
     logger.record_tabular('return-max', np.max(total_returns))
@@ -97,6 +98,7 @@ def evaluate_policy(pi, eval_env, epoch, tstart, eval_n_episodes=10, stochastic=
     logger.record_tabular('episode-length-max', np.max(episode_lengths))
     logger.record_tabular('episode-length-std', np.std(episode_lengths))
     logger.record_tabular("TimeElapsed", time.time() - tstart)
+    logger.record_tabular('TimestepsUsed', (epoch + 1) * timesteps_per_batch)
     logger.dump_tabular()
 
 
@@ -404,7 +406,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         vfadam.update(g, vf_stepsize)
 
             # evaluate current policy
-            evaluate_policy(pi, eval_env, epoch ,tstart)
+            evaluate_policy(pi, eval_env, epoch, timesteps_per_batch, tstart)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
