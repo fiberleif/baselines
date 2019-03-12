@@ -248,4 +248,5 @@ def traj_1_generator(pi, env, horizon, stochastic):
 
 if __name__ == '__main__':
     args = argsparser()
+    args.num_epochs = int(args.num_epochs)
     main(args)
