@@ -6,7 +6,7 @@ from visdom import Visdom
 
 
 class VisdomVisualizer(object):
-    def __init__(self, envid, run_name, xaxis_name='Timesteps', yaxis_name='Eval_avg_return', server='http://168.62.48.224', port=5000):
+    def __init__(self, envid, run_name, xaxis_name='Timestep', yaxis_name='Return', server='http://168.62.48.224', port=5000):
         self.viz = Visdom(server=server, port=port)
         assert self.viz.check_connection()  
         self.run_name = run_name
