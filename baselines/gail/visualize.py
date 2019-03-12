@@ -3,7 +3,7 @@
 ##  Contact: keavilzhangzty@gmail.com
 
 from visdom import Visdom
-from baselines import logger
+
 
 class VisdomVisualizer(object):
     def __init__(self, envid, run_name, xaxis_name='Timesteps', yaxis_name='Eval_avg_return', server='http://168.62.48.224', port=5000):
@@ -30,7 +30,6 @@ class VisdomVisualizer(object):
 
     def send(self):
         try:
-            #logger.info('Send graph to server.')
             self.win=self.viz._send({
                 'data':list(self.traces.values()), 
                 'layout':self.layout, 
@@ -38,7 +37,7 @@ class VisdomVisualizer(object):
                 'eid':self.envid,
                 })
         except:
-            logger.info('Error: Send graph error! This error will be ignored.')
+            print('Error: Send graph error! This error will be ignored.')
             self.win = None
 
     def paint(self, name, data: dict):

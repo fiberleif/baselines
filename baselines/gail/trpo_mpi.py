@@ -101,7 +101,7 @@ def evaluate_policy(pi, eval_env, epoch, timesteps_per_batch,
     logger.record_tabular('TimestepsUsed', (epoch + 1) * timesteps_per_batch)
     logger.dump_tabular()
 
-    visualizer.paint('return-average', {'x': (epoch + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
+    visualizer.paint('return-average', {'x':(epoch + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
     visualizer.draw_line('return-average', 'blue')
 
 
