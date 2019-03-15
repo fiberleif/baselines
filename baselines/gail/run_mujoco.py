@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import numpy as np
 import gym
+import sparse_gym_mujoco
 
 from baselines.gail import mlp_policy
 from baselines.common import set_global_seeds, tf_util as U
@@ -80,7 +81,7 @@ def main(args):
     visualizer = VisdomVisualizer('guoqing-POfD', args.env_id)
     visualizer.initialize('return-average', 'blue')
 
-    env = gym.make(args.env_id)
+    env = gym.make('Sparse' + args.env_id)
     eval_env = gym.make(args.env_id)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
