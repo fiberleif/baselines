@@ -77,7 +77,8 @@ def main(args):
     set_global_seeds(args.seed)
 
     # configure visualize
-    visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
+    visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-delay-" + str(args.delay_freq) +
+                                  "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
     visualizer.initialize('return-average', 'blue')
 
     env = gym.make(args.env_id)
