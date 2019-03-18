@@ -5,13 +5,10 @@ Disclaimer: this code is highly based on trpo_mpi at @openai/baselines and @open
 import argparse
 import os.path as osp
 import logging
-from mpi4py import MPI
-from tqdm import tqdm
-
 import numpy as np
 import gym
-import sparse_gym_mujoco
-
+from mpi4py import MPI
+from tqdm import tqdm
 from baselines.gail import mlp_policy
 from baselines.common import set_global_seeds, tf_util as U
 from baselines.common.misc_util import boolean_flag
@@ -20,12 +17,14 @@ from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
 from baselines.gail.visualize import VisdomVisualizer
-
+from baselines.gail.delay_env_wrapper import DelayRewardWrapper
 
 def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--max_path_length', help='Max path length', type=int, default=1000)
+    parser.add_argument('--delay_freq', help='Delay frequency', type=int, default=10)
     parser.add_argument('--expert_path', type=str, default='data/deterministic.trpo.Hopper.0.00.npz')
     parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
@@ -81,8 +80,10 @@ def main(args):
     visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
     visualizer.initialize('return-average', 'blue')
 
-    env = gym.make('Sparse' + args.env_id)
+    env = gym.make(args.env_id)
+    env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
     eval_env = gym.make(args.env_id)
+    eval_env = DelayRewardWrapper(eval_env, args.delay_freq, args.max_path_length)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
