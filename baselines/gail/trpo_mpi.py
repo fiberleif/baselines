@@ -20,7 +20,7 @@ from baselines.common.cg import cg
 from baselines.gail.statistics import stats
 
 
-def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
+def rollout(pi, reward_giver, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
     Da = eval_env.action_space.shape[0]
     Do = eval_env.observation_space.shape[0]
 
@@ -29,6 +29,7 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
     actions = np.zeros((path_length, Da))
     terminals = np.zeros((path_length, ))
     rewards = np.zeros((path_length, ))
+    discriminator_rewards = np.zeros((path_length, ))
 
     t = 0
     for t in range(path_length):
@@ -38,6 +39,7 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
         actions[t] = action
         terminals[t] = terminal
         rewards[t] = reward
+        discriminator_rewards[t] = reward_giver.reward_giver.get_reward(observation, action)
         observations[t] = observation
 
         observation = next_obs
@@ -58,21 +60,22 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
         'rewards': rewards[:t + 1],
         'terminals': terminals[:t + 1],
         'next_observations': observations[1:t + 2],
+        'discriminator_rewards': discriminator_rewards[:t + 1],
     }
 
     return path
 
 
-def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
+def rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic=False):
     paths = [
-        rollout(pi, eval_env, stochastic)
+        rollout(pi, reward_giver, eval_env, stochastic)
         for i in range(eval_n_episodes)
     ]
 
     return paths
 
 
-def evaluate_policy(pi, eval_env, g_update_num, timesteps_per_batch,
+def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batch,
                     tstart, visualizer, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
@@ -83,9 +86,10 @@ def evaluate_policy(pi, eval_env, g_update_num, timesteps_per_batch,
     if eval_n_episodes < 1:
         return
 
-    paths = rollouts(pi, eval_env, eval_n_episodes, stochastic)
+    paths = rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic)
 
     total_returns = [path['rewards'].sum() for path in paths]
+    discriminator_total_returns = [path['discriminator_rewards'].sum() for path in paths]
     episode_lengths = [len(p['rewards']) for p in paths]
 
     logger.record_tabular('current-g-update-num', g_update_num + 1)
@@ -93,6 +97,10 @@ def evaluate_policy(pi, eval_env, g_update_num, timesteps_per_batch,
     logger.record_tabular('return-min', np.min(total_returns))
     logger.record_tabular('return-max', np.max(total_returns))
     logger.record_tabular('return-std', np.std(total_returns))
+    logger.record_tabular('d-return-average', np.mean(discriminator_total_returns))
+    logger.record_tabular('d-return-min', np.min(discriminator_total_returns))
+    logger.record_tabular('d-return-max', np.max(discriminator_total_returns))
+    logger.record_tabular('d-return-std', np.std(discriminator_total_returns))
     logger.record_tabular('episode-length-avg', np.mean(episode_lengths))
     logger.record_tabular('episode-length-min', np.min(episode_lengths))
     logger.record_tabular('episode-length-max', np.max(episode_lengths))
@@ -410,7 +418,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
             # evaluate current policy
             if (g_step * epoch + g_step_num) % evaluation_freq == 0:
-                evaluate_policy(pi, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
+                evaluate_policy(pi, reward_giver, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
