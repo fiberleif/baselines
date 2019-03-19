@@ -20,7 +20,92 @@ from baselines.common.cg import cg
 from baselines.gail.statistics import stats
 
 
-def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
+def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
+    Da = eval_env.action_space.shape[0]
+    Do = eval_env.observation_space.shape[0]
+
+    observation = eval_env.reset()
+    observations = np.zeros((path_length + 1, Do))
+    actions = np.zeros((path_length, Da))
+    terminals = np.zeros((path_length, ))
+    rewards = np.zeros((path_length, ))
+
+    t = 0
+    for t in range(path_length):
+        action, _ = pi.act(stochastic, observation)
+        # action, agent_info = policy.get_action(observation)
+        next_obs, reward, terminal, env_info = eval_env.step(action)
+        actions[t] = action
+        terminals[t] = terminal
+        rewards[t] = reward
+        observations[t] = observation
+
+        observation = next_obs
+
+        if render:
+            eval_env.render()
+            time_step = 0.05
+            time.sleep(time_step / speedup)
+
+        if terminal:
+            break
+
+    observations[t + 1] = observation
+
+    path = {
+        'observations': observations[:t + 1],
+        'actions': actions[:t + 1],
+        'rewards': rewards[:t + 1],
+        'terminals': terminals[:t + 1],
+        'next_observations': observations[1:t + 2],
+    }
+
+    return path
+
+
+def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
+    paths = [
+        rollout(pi, eval_env, stochastic)
+        for i in range(eval_n_episodes)
+    ]
+
+    return paths
+
+
+def evaluate_policy(pi, eval_env, g_update_num, timesteps_per_batch,
+                    tstart, visualizer, eval_n_episodes=10, stochastic=False):
+    """Perform evaluation for the current policy.
+
+    :param epoch: The epoch number.
+    :return: None
+    """
+
+    if eval_n_episodes < 1:
+        return
+
+    paths = rollouts(pi, eval_env, eval_n_episodes, stochastic)
+
+    total_returns = [path['rewards'].sum() for path in paths]
+    episode_lengths = [len(p['rewards']) for p in paths]
+
+    logger.record_tabular('current-g-update-num', g_update_num + 1)
+    logger.record_tabular('return-average', np.mean(total_returns))
+    logger.record_tabular('return-min', np.min(total_returns))
+    logger.record_tabular('return-max', np.max(total_returns))
+    logger.record_tabular('return-std', np.std(total_returns))
+    logger.record_tabular('episode-length-avg', np.mean(episode_lengths))
+    logger.record_tabular('episode-length-min', np.min(episode_lengths))
+    logger.record_tabular('episode-length-max', np.max(episode_lengths))
+    logger.record_tabular('episode-length-std', np.std(episode_lengths))
+    logger.record_tabular("TimeElapsed", time.time() - tstart)
+    logger.record_tabular('TimestepsUsed', (g_update_num + 1) * timesteps_per_batch)
+    logger.dump_tabular()
+
+    visualizer.paint('return-average', {'x':(g_update_num + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
+    visualizer.draw_line('return-average', 'blue')
+
+
+def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
 
     # Initialize state variables
     t = 0
@@ -69,8 +154,9 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
 
-        rew = reward_giver.get_reward(ob, ac)
         ob, true_rew, new, _ = env.step(ac)
+        rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+
         rews[i] = rew
         true_rews[i] = true_rew
 
@@ -102,14 +188,14 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_func, reward_giver, expert_dataset, rank,
+def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
-          g_step, d_step, entcoeff, save_per_iter,
-          ckpt_dir, log_dir, timesteps_per_batch, task_name,
+          g_step, d_step, entcoeff, reward_coeff, save_per_iter,
+          ckpt_dir, log_dir, timesteps_per_batch, visualizer, task_name,
           gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
           vf_stepsize=3e-4, d_stepsize=3e-4, vf_iters=3,
-          max_timesteps=0, max_episodes=0, max_iters=0,
+          max_timesteps=0, max_episodes=0, max_iters=0, num_epochs=1000,
           callback=None
           ):
 
@@ -204,7 +290,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -223,14 +309,14 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     if pretrained_weight is not None:
         U.load_state(pretrained_weight, var_list=pi.get_variables())
 
-    while True:
+    for epoch in range(num_epochs):
         if callback: callback(locals(), globals())
-        if max_timesteps and timesteps_so_far >= max_timesteps:
-            break
-        elif max_episodes and episodes_so_far >= max_episodes:
-            break
-        elif max_iters and iters_so_far >= max_iters:
-            break
+        # if max_timesteps and timesteps_so_far >= max_timesteps:
+        #     break
+        # elif max_episodes and episodes_so_far >= max_episodes:
+        #     break
+        # elif max_iters and iters_so_far >= max_iters:
+        #     break
 
         # Save model
         if rank == 0 and iters_so_far % save_per_iter == 0 and ckpt_dir is not None:
@@ -239,7 +325,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             saver = tf.train.Saver()
             saver.save(tf.get_default_session(), fname)
         
-        logger.log("********** Iteration %i ************" % iters_so_far)
+        logger.log("********** Epoch %i ************" % epoch)
 
         def fisher_vector_product(p):
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
@@ -250,7 +336,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
         total_ep_rets = []
         total_ep_lens = []
         total_ep_true_rets = []
-        for _ in range(g_step):
+        for g_step_num in range(g_step):
             with timed("sampling"):
                 seg = seg_gen.__next__()
 
@@ -322,6 +408,9 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
                         g = allmean(compute_vflossandgrad(mbob, mbret))
                         vfadam.update(g, vf_stepsize)
 
+            # evaluate current policy
+            evaluate_policy(pi, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
+
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
         #     logger.record_tabular(lossname, lossval)
@@ -349,27 +438,27 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             d_losses.append(newlosses)
         logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
 
-        lrlocal = (total_ep_lens, total_ep_rets, total_ep_true_rets)  # local values
-        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-        lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
-        true_rewbuffer.extend(true_rets)
-        lenbuffer.extend(lens)
-        rewbuffer.extend(rews)
+        # lrlocal = (total_ep_lens, total_ep_rets, total_ep_true_rets)  # local values
+        # listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+        # lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
+        # true_rewbuffer.extend(true_rets)
+        # lenbuffer.extend(lens)
+        # rewbuffer.extend(rews)
+        #
+        # logger.record_tabular("EpLenMean", np.mean(lenbuffer))
+        # logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        # logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
+        # logger.record_tabular("EpThisIter", len(lens))
+        # episodes_so_far += len(lens)
+        # timesteps_so_far += sum(lens)
+        # iters_so_far += 1
+        #
+        # logger.record_tabular("EpisodesSoFar", episodes_so_far)
+        # logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+        # logger.record_tabular("TimeElapsed", time.time() - tstart)
 
-        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-        logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
-        logger.record_tabular("EpThisIter", len(lens))
-        episodes_so_far += len(lens)
-        timesteps_so_far += sum(lens)
-        iters_so_far += 1
-
-        logger.record_tabular("EpisodesSoFar", episodes_so_far)
-        logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        logger.record_tabular("TimeElapsed", time.time() - tstart)
-
-        if rank == 0:
-            logger.dump_tabular()
+        # if rank == 0:
+        #     logger.dump_tabular()
 
 
 def flatten_lists(listoflists):
