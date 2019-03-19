@@ -155,7 +155,7 @@ def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochas
         prevacs[i] = prevac
 
         ob, true_rew, new, _ = env.step(ac)
-        rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+        rew = reward_giver.get_reward(ob, ac)
 
         rews[i] = rew
         true_rews[i] = true_rew

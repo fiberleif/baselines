@@ -46,7 +46,7 @@ def argsparser():
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
-    parser.add_argument('--reward_coeff', type=float, default=0.1)
+    parser.add_argument('--reward_coeff', type=float, default=0.0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
@@ -66,7 +66,7 @@ def get_task_name(args):
         task_name += "transition_limitation_%d." % args.traj_limitation
     task_name += args.env_id.split("-")[0]
     task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
-        ".policy_entcoeff_" + str(args.policy_entcoeff) + ".reward_coeff_" + str(args.reward_coeff) \
+        ".policy_entcoeff_" + str(args.policy_entcoeff) \
                 + ".adversary_entcoeff_" + str(args.adversary_entcoeff)
     task_name += ".seed_" + str(args.seed)
     return task_name
@@ -77,8 +77,8 @@ def main(args):
     set_global_seeds(args.seed)
 
     # configure visualize
-    visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-delay-" + str(args.delay_freq) +
-                                  "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
+    visualizer = VisdomVisualizer('guoqing-GAIL', args.env_id + "-delay-" + str(args.delay_freq) +
+                                   "-seed-" + str(args.seed))
     visualizer.initialize('return-average', 'blue')
 
     env = gym.make(args.env_id)
