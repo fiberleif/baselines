@@ -37,6 +37,7 @@ def argsparser():
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Optimization Configuration
+    parser.add_argument('--timesteps_per_batch,', help='number of timesteps in each batch', type=int, default=1000)
     parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
     parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
     # Network Configuration (Using MLP Policy)
@@ -68,7 +69,8 @@ def get_task_name(args):
     task_name += args.env_id.split("-")[0]
     task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
         ".policy_entcoeff_" + str(args.policy_entcoeff) \
-        + ".adversary_entcoeff_" + str(args.adversary_entcoeff) + ".delay_freq" + str(args.delay_freq)
+        + ".adversary_entcoeff_" + str(args.adversary_entcoeff) + ".delay_freq" + str(args.delay_freq) \
+        + ".timesteps_per_batch" + str(args.timesteps_per_batch)
     task_name += ".seed_" + str(args.seed)
     return task_name
 
@@ -123,13 +125,14 @@ def main(args):
               args.num_epochs,
               visualizer,
               args.evaluation_freq,
+              args.timesteps_per_batch,
               task_name,
               )
     elif args.task == 'evaluate':
         runner(env,
                policy_fn,
                args.load_model_path,
-               timesteps_per_batch=1000,
+               timesteps_per_batch=args.timesteps_per_batch,
                number_trajs=10,
                stochastic_policy=args.stochastic_policy,
                save=args.save_sample
@@ -141,7 +144,8 @@ def main(args):
 
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, evaluation_freq, task_name=None):
+          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, evaluation_freq, timesteps_per_batch,
+          task_name=None):
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
@@ -167,7 +171,7 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
-                       timesteps_per_batch=1000,
+                       timesteps_per_batch=timesteps_per_batch,
                        max_kl=0.01, cg_iters=10, cg_damping=0.1,
                        gamma=0.995, lam=0.97,
                        vf_iters=5, vf_stepsize=1e-3,
