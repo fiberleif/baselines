@@ -55,6 +55,7 @@ def argsparser():
     boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
     parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
+    parser.add_argument('--evaluation_freq', help='Number of updates to evaluate', type=int, default=10)
     return parser.parse_args()
 
 
@@ -121,6 +122,7 @@ def main(args):
               args.BC_max_iter,
               args.num_epochs,
               visualizer,
+              args.evaluation_freq,
               task_name,
               )
     elif args.task == 'evaluate':
@@ -139,7 +141,7 @@ def main(args):
 
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, task_name=None):
+          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, evaluation_freq, task_name = None):
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
@@ -171,6 +173,7 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        vf_iters=5, vf_stepsize=1e-3,
                        num_epochs=num_epochs,
                        visualizer=visualizer,
+                       evaluation_freq=evaluation_freq,
                        task_name=task_name)
     else:
         raise NotImplementedError

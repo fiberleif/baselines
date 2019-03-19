@@ -191,8 +191,8 @@ def add_vtarg_and_adv(seg, gamma, lam):
 def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
           g_step, d_step, entcoeff, reward_coeff, save_per_iter,
-          ckpt_dir, log_dir, timesteps_per_batch, visualizer, task_name,
-          gamma, lam,
+          ckpt_dir, log_dir, timesteps_per_batch, visualizer, evaluation_freq,
+          task_name, gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
           vf_stepsize=3e-4, d_stepsize=3e-4, vf_iters=3,
           max_timesteps=0, max_episodes=0, max_iters=0, num_epochs=1000,
@@ -409,7 +409,8 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         vfadam.update(g, vf_stepsize)
 
             # evaluate current policy
-            evaluate_policy(pi, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
+            if (g_step * epoch + g_step_num) % evaluation_freq == 0:
+                evaluate_policy(pi, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
