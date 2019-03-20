@@ -39,7 +39,7 @@ def argsparser():
     # Optimization Configuration
     parser.add_argument('--timesteps_per_batch', help='number of timesteps in each batch', type=int, default=1000)
     parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
-    parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
+    parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=5)
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
