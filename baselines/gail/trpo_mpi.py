@@ -423,7 +423,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
             # evaluate current policy
             if (g_step * epoch + g_step_num) % evaluation_freq == 0:
-                evaluate_policy(pi, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
+                evaluate_policy(pi, reward_giver, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
 
         # g_losses = meanlosses
         # for (lossname, lossval) in zip(loss_names, meanlosses):
