@@ -39,7 +39,7 @@ def rollout(pi, reward_giver, eval_env, stochastic=False, path_length=1000, rend
         actions[t] = action
         terminals[t] = terminal
         rewards[t] = reward
-        discriminator_rewards[t] = reward_giver.reward_giver.get_reward(observation, action)
+        discriminator_rewards[t] = reward_giver.get_reward(observation, action)
         observations[t] = observation
 
         observation = next_obs
