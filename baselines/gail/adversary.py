@@ -32,6 +32,10 @@ class TransitionClassifier(object):
         # Build accuracy
         generator_acc = tf.reduce_mean(tf.to_float(tf.nn.sigmoid(generator_logits) < 0.5))
         expert_acc = tf.reduce_mean(tf.to_float(tf.nn.sigmoid(expert_logits) > 0.5))
+        # Build discriminator value mean
+        generator_d_value_mean = tf.reduce_mean(tf.to_float(tf.nn.sigmoid(generator_logits)))
+        expert_d_value_mean = tf.reduce_mean(tf.to_float(tf.nn.sigmoid(expert_logits)))
+
         # Build regression loss
         # let x = logits, z = targets.
         # z * -log(sigmoid(x)) + (1 - z) * -log(1 - sigmoid(x))
@@ -44,8 +48,10 @@ class TransitionClassifier(object):
         entropy = tf.reduce_mean(logit_bernoulli_entropy(logits))
         entropy_loss = -entcoeff*entropy
         # Loss + Accuracy terms
-        self.losses = [generator_loss, expert_loss, entropy, entropy_loss, generator_acc, expert_acc]
-        self.loss_name = ["generator_loss", "expert_loss", "entropy", "entropy_loss", "generator_acc", "expert_acc"]
+        self.losses = [generator_loss, expert_loss, entropy, entropy_loss, generator_acc, expert_acc,
+                       generator_d_value_mean, expert_d_value_mean]
+        self.loss_name = ["generator_loss", "expert_loss", "entropy", "entropy_loss", "generator_acc", "expert_acc",
+                          "generator_value", "expert_value"]
         self.total_loss = generator_loss + expert_loss + entropy_loss
         # Build Reward for policy
         self.reward_op = -tf.log(1-tf.nn.sigmoid(generator_logits)+1e-8)
