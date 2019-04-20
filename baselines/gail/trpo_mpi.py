@@ -20,7 +20,7 @@ from baselines.common.cg import cg
 from baselines.gail.statistics import stats
 
 
-def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
+def rollout(pi, reward_giver, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
     Da = eval_env.action_space.shape[0]
     Do = eval_env.observation_space.shape[0]
 
@@ -29,6 +29,7 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
     actions = np.zeros((path_length, Da))
     terminals = np.zeros((path_length, ))
     rewards = np.zeros((path_length, ))
+    discriminator_rewards = np.zeros((path_length,))
 
     t = 0
     for t in range(path_length):
@@ -38,6 +39,7 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
         actions[t] = action
         terminals[t] = terminal
         rewards[t] = reward
+        discriminator_rewards[t] = reward_giver.get_reward(observation, action)
         observations[t] = observation
 
         observation = next_obs
@@ -58,21 +60,22 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
         'rewards': rewards[:t + 1],
         'terminals': terminals[:t + 1],
         'next_observations': observations[1:t + 2],
+        'discriminator_rewards': discriminator_rewards[:t + 1],
     }
 
     return path
 
 
-def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
+def rollouts(pi, eval_env, reward_giver, eval_n_episodes, stochastic=False):
     paths = [
-        rollout(pi, eval_env, stochastic)
+        rollout(pi, reward_giver, eval_env, stochastic)
         for i in range(eval_n_episodes)
     ]
 
     return paths
 
 
-def evaluate_policy(pi, eval_env, total_samples, tstart, eval_n_episodes=10, stochastic=False):
+def evaluate_policy(pi, reward_giver, eval_env, total_samples, tstart, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
     :param epoch: The epoch number.
     :return: None
@@ -81,9 +84,10 @@ def evaluate_policy(pi, eval_env, total_samples, tstart, eval_n_episodes=10, sto
     if eval_n_episodes < 1:
         return
 
-    paths = rollouts(pi, eval_env, eval_n_episodes, stochastic)
+    paths = rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic)
 
     total_returns = [path['rewards'].sum() for path in paths]
+    discriminator_total_returns = [path['discriminator_rewards'].sum() for path in paths]
     episode_lengths = [len(p['rewards']) for p in paths]
 
     # logger.record_tabular('current-epoch', epoch)
@@ -92,6 +96,11 @@ def evaluate_policy(pi, eval_env, total_samples, tstart, eval_n_episodes=10, sto
     logger.record_tabular('return-min', np.min(total_returns))
     logger.record_tabular('return-max', np.max(total_returns))
     logger.record_tabular('return-std', np.std(total_returns))
+    logger.record_tabular('d-return-average', np.mean(discriminator_total_returns))
+    logger.record_tabular('d-return-min', np.min(discriminator_total_returns))
+    logger.record_tabular('d-return-max', np.max(discriminator_total_returns))
+    logger.record_tabular('d-return-std', np.std(discriminator_total_returns))
+    logger.record_tabular('reward-ratio', np.mean(total_returns) / np.mean(discriminator_total_returns))
     logger.record_tabular('episode-length-avg', np.mean(episode_lengths))
     logger.record_tabular('episode-length-min', np.min(episode_lengths))
     logger.record_tabular('episode-length-max', np.max(episode_lengths))
@@ -100,7 +109,7 @@ def evaluate_policy(pi, eval_env, total_samples, tstart, eval_n_episodes=10, sto
     logger.dump_tabular()
 
 
-def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
+def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
 
     # Initialize state variables
     t = 0
@@ -151,6 +160,8 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
 
         rew = reward_giver.get_reward(ob, ac)
         ob, true_rew, new, _ = env.step(ac)
+        rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+
         rews[i] = rew
         true_rews[i] = true_rew
 
@@ -184,7 +195,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
-          g_step, d_step, entcoeff, save_per_iter,
+          g_step, d_step, entcoeff, reward_coeff, save_per_iter,
           ckpt_dir, log_dir, timesteps_per_batch, task_name,
           gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
@@ -284,7 +295,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -399,7 +410,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
         # evaluate current policy
         if (epoch + 1) % eval_interval == 0:
             total_samples = (epoch + 1) * timesteps_per_batch * g_step
-            evaluate_policy(pi, eval_env, total_samples, tstart)
+            evaluate_policy(pi, reward_giver, eval_env, total_samples, tstart)
 
         # ------------------ Update D ------------------
         logger.log("Optimizing Discriminator...")

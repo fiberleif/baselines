@@ -18,6 +18,7 @@ from baselines import bench
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
+from baselines.gail.delay_env_wrapper import DelayRewardWrapper
 
 
 def argsparser():
@@ -55,6 +56,8 @@ def argsparser():
     parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
     parser.add_argument('--eval_interval', help='evaluation interval', type=int, default=10)
     parser.add_argument('--timesteps_per_batch', help='timesteps per epoch', type=int, default=1000)
+    parser.add_argument('--reward_freq', help='env delay num', type=int, default=10)
+    parser.add_argument('--reward_coeff', type=float, default=0.1)
     return parser.parse_args()
 
 
@@ -76,6 +79,8 @@ def main(args):
     set_global_seeds(args.seed)
 
     env = gym.make(args.env_id)
+    # delay training env
+    env = DelayRewardWrapper(env, args.reward_freq, 1000)
     eval_env = gym.make(args.env_id)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
@@ -104,6 +109,7 @@ def main(args):
               args.g_step,
               args.d_step,
               args.policy_entcoeff,
+              args.reward_coeff,
               args.num_timesteps,
               args.save_per_iter,
               args.checkpoint_dir,
@@ -130,7 +136,7 @@ def main(args):
 
 
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
-          g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
+          g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, eval_interval, timesteps_per_batch, task_name=None):
 
     pretrained_weight = None
@@ -153,6 +159,7 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
+                       reward_coeff=reward_coeff,
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
