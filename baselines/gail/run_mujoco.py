@@ -24,7 +24,7 @@ def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--expert_path', type=str, default='data/deterministic.trpo.Hopper.0.00.npz')
+    parser.add_argument('--expert_path', type=str, default='dataset/hopper.npz')
     parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
     parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)
@@ -36,8 +36,8 @@ def argsparser():
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Optimization Configuration
-    parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=3)
-    parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
+    parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
+    parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=5)
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
@@ -48,10 +48,13 @@ def argsparser():
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
-    parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
+    parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=2e6)
     # Behavior Cloning
     boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
+    parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
+    parser.add_argument('--eval_interval', help='evaluation interval', type=int, default=10)
+    parser.add_argument('--timesteps_per_batch', help='timesteps per epoch', type=int, default=1000)
     return parser.parse_args()
 
 
@@ -71,14 +74,18 @@ def get_task_name(args):
 def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
+
     env = gym.make(args.env_id)
+    eval_env = gym.make(args.env_id)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
+    # env = bench.Monitor(env, logger.get_dir() and
+    #                     osp.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
+    eval_env.seed(args.seed)
+
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
@@ -88,6 +95,7 @@ def main(args):
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
         reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
         train(env,
+              eval_env,
               args.seed,
               policy_fn,
               reward_giver,
@@ -102,13 +110,16 @@ def main(args):
               args.log_dir,
               args.pretrained,
               args.BC_max_iter,
-              task_name
+              args.num_epochs,
+              args.eval_interval,
+              args.timesteps_per_batch,
+              task_name,
               )
     elif args.task == 'evaluate':
         runner(env,
                policy_fn,
                args.load_model_path,
-               timesteps_per_batch=1024,
+               timesteps_per_batch=args.timesteps_per_batch,
                number_trajs=10,
                stochastic_policy=args.stochastic_policy,
                save=args.save_sample
@@ -118,9 +129,9 @@ def main(args):
     env.close()
 
 
-def train(env, seed, policy_fn, reward_giver, dataset, algo,
+def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
+          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, eval_interval, timesteps_per_batch, task_name=None):
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
@@ -138,17 +149,19 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
         workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
         set_global_seeds(workerseed)
         env.seed(workerseed)
-        trpo_mpi.learn(env, policy_fn, reward_giver, dataset, rank,
+        trpo_mpi.learn(env, eval_env, policy_fn, reward_giver, dataset, rank,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
                        max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
-                       timesteps_per_batch=1024,
+                       timesteps_per_batch=timesteps_per_batch,
                        max_kl=0.01, cg_iters=10, cg_damping=0.1,
                        gamma=0.995, lam=0.97,
                        vf_iters=5, vf_stepsize=1e-3,
+                       num_epochs=num_epochs,
+                       eval_interval=eval_interval,
                        task_name=task_name)
     else:
         raise NotImplementedError
@@ -236,4 +249,5 @@ def traj_1_generator(pi, env, horizon, stochastic):
 
 if __name__ == '__main__':
     args = argsparser()
+    args.num_epochs = int(args.num_epochs)
     main(args)
