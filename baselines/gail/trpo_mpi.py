@@ -66,7 +66,7 @@ def rollout(pi, reward_giver, eval_env, stochastic=False, path_length=1000, rend
     return path
 
 
-def rollouts(pi, eval_env, reward_giver, eval_n_episodes, stochastic=False):
+def rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic=False):
     paths = [
         rollout(pi, reward_giver, eval_env, stochastic)
         for i in range(eval_n_episodes)
