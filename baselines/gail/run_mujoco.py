@@ -80,9 +80,10 @@ def main(args):
     set_global_seeds(args.seed)
 
     # configure visualize
-    visualizer = VisdomVisualizer('guoqing-GAIL', args.env_id + "-delay-" + str(args.delay_freq) +
-                                   "-seed-" + str(args.seed))
-    visualizer.initialize('return-average', 'blue')
+    # visualizer = VisdomVisualizer('guoqing-GAIL', args.env_id + "-delay-" + str(args.delay_freq) +
+    #                                "-seed-" + str(args.seed))
+    # visualizer.initialize('return-average', 'blue')
+    visualizer = None
 
     env = gym.make(args.env_id)
     env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
