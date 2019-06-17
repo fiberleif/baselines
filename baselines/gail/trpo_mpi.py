@@ -34,7 +34,6 @@ def rollout(pi, reward_giver, eval_env, stochastic=False, path_length=1000, rend
     t = 0
     for t in range(path_length):
         action, _ = pi.act(stochastic, observation)
-        # action, agent_info = policy.get_action(observation)
         next_obs, reward, terminal, env_info = eval_env.step(action)
         actions[t] = action
         terminals[t] = terminal
@@ -76,7 +75,7 @@ def rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic=False):
 
 
 def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batch,
-                    tstart, visualizer, eval_n_episodes=10, stochastic=False):
+                    tstart, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
     :param epoch: The epoch number.
@@ -114,18 +113,13 @@ def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batc
     logger.record_tabular('TimestepsUsed', (g_update_num + 1) * timesteps_per_batch)
     logger.dump_tabular()
 
-    # visualizer.paint('return-average', {'x':(g_update_num + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
-    # visualizer.draw_line('return-average', 'blue')
 
-
-def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
+def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
 
     # Initialize state variables
     t = 0
     ac = env.action_space.sample()
     new = True
-    rew = 0.0
-    true_rew = 0.0
     ob = env.reset()
 
     cur_ep_ret = 0
@@ -203,12 +197,12 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           pretrained, pretrained_weight, *,
-          g_step, d_step, entcoeff, reward_coeff, save_per_iter,
-          ckpt_dir, log_dir, timesteps_per_batch, visualizer, evaluation_freq,
+          g_step, d_step, entcoeff, save_per_iter,
+          ckpt_dir, log_dir, timesteps_per_batch, evaluation_freq,
           task_name, gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
           vf_stepsize=3e-4, d_stepsize=3e-4, vf_iters=3,
-          max_timesteps=0, max_episodes=0, max_iters=0, num_epochs=1000,
+          num_epochs=1000,
           callback=None
           ):
 
@@ -303,7 +297,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, reward_giver, timesteps_per_batch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -312,8 +306,6 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
     lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
     true_rewbuffer = deque(maxlen=40)
-
-    assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0]) == 1
 
     g_loss_stats = stats(loss_names)
     d_loss_stats = stats(reward_giver.loss_name)
@@ -324,12 +316,6 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
     for epoch in range(num_epochs):
         if callback: callback(locals(), globals())
-        # if max_timesteps and timesteps_so_far >= max_timesteps:
-        #     break
-        # elif max_episodes and episodes_so_far >= max_episodes:
-        #     break
-        # elif max_iters and iters_so_far >= max_iters:
-        #     break
 
         # Save model
         if rank == 0 and iters_so_far % save_per_iter == 0 and ckpt_dir is not None:
@@ -353,7 +339,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
             with timed("sampling"):
                 seg = seg_gen.__next__()
 
-            # add seg into total_seg
+            # Add seg into total_seg
             total_obs.append(seg["ob"])
             total_acs.append(seg["ac"])
             total_ep_rets.append(seg["ep_rets"])
@@ -421,15 +407,11 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         g = allmean(compute_vflossandgrad(mbob, mbret))
                         vfadam.update(g, vf_stepsize)
 
-            # evaluate current policy
+            # Evaluate current policy
             if (g_step * epoch + g_step_num) % evaluation_freq == 0:
-                evaluate_policy(pi, reward_giver, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
+                evaluate_policy(pi, reward_giver, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart)
 
-        # g_losses = meanlosses
-        # for (lossname, lossval) in zip(loss_names, meanlosses):
-        #     logger.record_tabular(lossname, lossval)
-        # logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-        # ------------------ Update D ------------------
+        #  ------------------ Update D ------------------
         logger.log("Optimizing Discriminator...")
         total_obs = np.vstack(total_obs)
         total_acs = np.vstack(total_acs)
@@ -445,35 +427,11 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                                                       include_final_partial_batch=False,
                                                       batch_size=batch_size):
             ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob_batch))
-            # update running mean/std for reward_giver
+            # Update running mean/std for reward_giver
             if hasattr(reward_giver, "obs_rms"): reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
             *newlosses, g = reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
             d_adam.update(allmean(g), d_stepsize)
             d_losses.append(newlosses)
         logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
 
-        # lrlocal = (total_ep_lens, total_ep_rets, total_ep_true_rets)  # local values
-        # listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-        # lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
-        # true_rewbuffer.extend(true_rets)
-        # lenbuffer.extend(lens)
-        # rewbuffer.extend(rews)
-        #
-        # logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        # logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-        # logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
-        # logger.record_tabular("EpThisIter", len(lens))
-        # episodes_so_far += len(lens)
-        # timesteps_so_far += sum(lens)
-        # iters_so_far += 1
-        #
-        # logger.record_tabular("EpisodesSoFar", episodes_so_far)
-        # logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        # logger.record_tabular("TimeElapsed", time.time() - tstart)
 
-        # if rank == 0:
-        #     logger.dump_tabular()
-
-
-def flatten_lists(listoflists):
-    return [el for list_ in listoflists for el in list_]

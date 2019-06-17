@@ -68,7 +68,7 @@ class VisdomVisualizer(object):
             )
         self.send()
 
-#
+
 if __name__ == '__main__':
     v = VisdomVisualizer('pushi-atari' ,'Venture-divergence')
     v.initialize('train-reward', 'red')
@@ -82,5 +82,3 @@ if __name__ == '__main__':
 
     v.draw_line('test-reward', 'rgb(255, 0, 0)')
     v.draw_line('train-reward', 'rgb(0, 0, 255)')
-    #v.fill_line('sth_fill', 'rgba(0, 100, 80, 0.2)', [0, 1, 2, 3, 4], [0, 6, 8, 2, 4], [0, 4, 6, 0, 2])
-    #v.fill_line('sth_fill', 'rgba(0, 100, 80, 0.2)', [5, 6, 7, 8, 9], [4, 6, 8, 2, 4], [2, 4, 6, 0, 2])

@@ -12,30 +12,29 @@ from tqdm import tqdm
 from baselines.gail import mlp_policy
 from baselines.common import set_global_seeds, tf_util as U
 from baselines.common.misc_util import boolean_flag
-from baselines import bench
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
-from baselines.gail.visualize import VisdomVisualizer
 from baselines.gail.delay_env_wrapper import DelayRewardWrapper
 
 
 def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
+    # Environment Configuration
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--max_path_length', help='Max path length', type=int, default=1000)
     parser.add_argument('--delay_freq', help='Delay frequency', type=int, default=10)
     parser.add_argument('--expert_path', type=str, default='dataset/hopper.npz')
-    parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
-    parser.add_argument('--log_dir', help='the directory to save log file', default='log')
-    parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)
-    # Task
+    # Task Configuration
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
-    # for evaluatation
+    # ------------------------------------------------------------------------------------------------------------------
+    # Evaluate Configuration
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
-    #  Mujoco Dataset Configuration
+    # ------------------------------------------------------------------------------------------------------------------
+    # Train Configuration
+    # Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Optimization Configuration
     parser.add_argument('--timesteps_per_batch', help='number of timesteps in each batch', type=int, default=1000)
@@ -48,16 +47,18 @@ def argsparser():
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
-    parser.add_argument('--reward_coeff', type=float, default=0.0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
-    # Traing Configuration
+    # Training Configuration
+    parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
+    parser.add_argument('--evaluation_freq', help='Number of updates to evaluate', type=int, default=10)
+    parser.add_argument('--log_dir', help='the directory to save log file', default='log')
+    parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
-    parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
+    parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
     # Behavior Cloning
     boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
-    parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
-    parser.add_argument('--evaluation_freq', help='Number of updates to evaluate', type=int, default=10)
+    # ------------------------------------------------------------------------------------------------------------------
     return parser.parse_args()
 
 
@@ -79,23 +80,13 @@ def get_task_name(args):
 def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
-
-    # configure visualize
-    # visualizer = VisdomVisualizer('guoqing-GAIL', args.env_id + "-delay-" + str(args.delay_freq) +
-    #                                "-seed-" + str(args.seed))
-    # visualizer.initialize('return-average', 'blue')
-    visualizer = None
-
     env = gym.make(args.env_id)
     env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
     eval_env = gym.make(args.env_id)
-    eval_env = DelayRewardWrapper(eval_env, args.delay_freq, args.max_path_length)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
     eval_env.seed(args.seed)
 
@@ -117,15 +108,12 @@ def main(args):
               args.g_step,
               args.d_step,
               args.policy_entcoeff,
-              args.reward_coeff,
-              args.num_timesteps,
               args.save_per_iter,
               args.checkpoint_dir,
               args.log_dir,
               args.pretrained,
               args.BC_max_iter,
               args.num_epochs,
-              visualizer,
               args.evaluation_freq,
               args.timesteps_per_batch,
               task_name,
@@ -145,8 +133,8 @@ def main(args):
 
 
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
-          g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, evaluation_freq, timesteps_per_batch,
+          g_step, d_step, policy_entcoeff, save_per_iter,
+          checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, evaluation_freq, timesteps_per_batch,
           task_name=None):
 
     pretrained_weight = None
@@ -169,8 +157,6 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
-                       reward_coeff=reward_coeff,
-                       max_timesteps=num_timesteps,
                        ckpt_dir=checkpoint_dir, log_dir=log_dir,
                        save_per_iter=save_per_iter,
                        timesteps_per_batch=timesteps_per_batch,
@@ -178,7 +164,6 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        gamma=0.995, lam=0.97,
                        vf_iters=5, vf_stepsize=1e-3,
                        num_epochs=num_epochs,
-                       visualizer=visualizer,
                        evaluation_freq=evaluation_freq,
                        task_name=task_name)
     else:
