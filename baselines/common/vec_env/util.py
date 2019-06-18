@@ -48,8 +48,8 @@ def obs_space_info(obs_space):
     for key, box in subspaces.items():
         keys.append(key)
         shapes[key] = box.shape
-        dtypes[key] = box.dtype
-    return keys, shapes, dtypes
+        # dtypes[key] = box.dtype
+    return keys, shapes
 
 
 def obs_to_dict(obs):
