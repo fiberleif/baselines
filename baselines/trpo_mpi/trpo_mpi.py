@@ -30,7 +30,7 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
 
     t = 0
     for t in range(path_length):
-        action, _ = pi.act(stochastic, observation)
+        action, _, _, _ = pi.step(observation, stochastic=stochastic)
         next_obs, reward, terminal, env_info = eval_env.step(action)
         actions[t] = action
         terminals[t] = terminal
