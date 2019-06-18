@@ -59,14 +59,14 @@ def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, spee
     return path
 
 
-def rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic=False):
+def rollouts(pi, eval_env, eval_n_episodes, stochastic=False):
     paths = [
-        rollout(pi, reward_giver, eval_env, stochastic) for _ in range(eval_n_episodes)
+        rollout(pi, eval_env, stochastic) for _ in range(eval_n_episodes)
     ]
     return paths
 
 
-def evaluate_policy(pi, reward_giver, eval_env, epoch, timesteps_per_batch, tstart, eval_n_episodes=10, stochastic=False):
+def evaluate_policy(pi, eval_env, epoch, timesteps_per_batch, tstart, eval_n_episodes=10, stochastic=False):
     """Perform evaluation for the current policy.
 
     :param epoch: The epoch number.
@@ -76,7 +76,7 @@ def evaluate_policy(pi, reward_giver, eval_env, epoch, timesteps_per_batch, tsta
     if eval_n_episodes < 1:
         return
 
-    paths = rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic)
+    paths = rollouts(pi, eval_env, eval_n_episodes, stochastic)
 
     total_returns = [path['rewards'].sum() for path in paths]
     episode_lengths = [len(p['rewards']) for p in paths]
