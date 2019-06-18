@@ -24,11 +24,11 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     assert isinstance(ob_space, Discrete) or isinstance(ob_space, Box) or isinstance(ob_space, MultiDiscrete), \
         'Can only deal with Discrete and Box observation spaces for now'
 
-    dtype = ob_space.dtype
-    if dtype == np.int8:
-        dtype = np.uint8
+    # dtype = ob_space.dtype
+    # if dtype == np.int8:
+    #     dtype = np.uint8
 
-    return tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=dtype, name=name)
+    return tf.placeholder(shape=(batch_size,) + ob_space.shape, name=name)
 
 
 def observation_input(ob_space, batch_size=None, name='Ob'):
