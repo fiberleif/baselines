@@ -15,10 +15,11 @@ def atari():
         entcoeff=0.00,
     )
 
+
 def mujoco():
     return dict(
         network = mlp(num_hidden=32, num_layers=2),
-        timesteps_per_batch=1024,
+        timesteps_per_batch=1000,
         max_kl=0.01,
         cg_iters=10,
         cg_damping=0.1,
@@ -27,4 +28,6 @@ def mujoco():
         vf_iters=5,
         vf_stepsize=1e-3,
         normalize_observations=True,
+        evaluate_freq=10,
+        num_epochs=1000,
     )

@@ -3,6 +3,7 @@ from baselines import logger
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
+import os
 from baselines.common import colorize
 from collections import deque
 from baselines.common import set_global_seeds
@@ -16,6 +17,83 @@ try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
+
+
+def rollout(pi, eval_env, stochastic=False, path_length=1000, render=False, speedup=None):
+    Da = eval_env.action_space.shape[0]
+    Do = eval_env.observation_space.shape[0]
+    observation = eval_env.reset()
+    observations = np.zeros((path_length + 1, Do))
+    actions = np.zeros((path_length, Da))
+    terminals = np.zeros((path_length, ))
+    rewards = np.zeros((path_length, ))
+
+    t = 0
+    for t in range(path_length):
+        action, _ = pi.act(stochastic, observation)
+        next_obs, reward, terminal, env_info = eval_env.step(action)
+        actions[t] = action
+        terminals[t] = terminal
+        rewards[t] = reward
+        observations[t] = observation
+        observation = next_obs
+
+        if render:
+            eval_env.render()
+            time_step = 0.05
+            time.sleep(time_step / speedup)
+
+        if terminal:
+            break
+
+    observations[t + 1] = observation
+
+    path = {
+        'observations': observations[:t + 1],
+        'actions': actions[:t + 1],
+        'rewards': rewards[:t + 1],
+        'terminals': terminals[:t + 1],
+        'next_observations': observations[1:t + 2],
+    }
+
+    return path
+
+
+def rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic=False):
+    paths = [
+        rollout(pi, reward_giver, eval_env, stochastic) for _ in range(eval_n_episodes)
+    ]
+    return paths
+
+
+def evaluate_policy(pi, reward_giver, eval_env, epoch, timesteps_per_batch, tstart, eval_n_episodes=10, stochastic=False):
+    """Perform evaluation for the current policy.
+
+    :param epoch: The epoch number.
+    :return: None
+    """
+
+    if eval_n_episodes < 1:
+        return
+
+    paths = rollouts(pi, reward_giver, eval_env, eval_n_episodes, stochastic)
+
+    total_returns = [path['rewards'].sum() for path in paths]
+    episode_lengths = [len(p['rewards']) for p in paths]
+
+    logger.record_tabular('current-epoch', epoch + 1)
+    logger.record_tabular('return-average', np.mean(total_returns))
+    logger.record_tabular('return-min', np.min(total_returns))
+    logger.record_tabular('return-max', np.max(total_returns))
+    logger.record_tabular('return-std', np.std(total_returns))
+    logger.record_tabular('episode-length-avg', np.mean(episode_lengths))
+    logger.record_tabular('episode-length-min', np.min(episode_lengths))
+    logger.record_tabular('episode-length-max', np.max(episode_lengths))
+    logger.record_tabular('episode-length-std', np.std(episode_lengths))
+    logger.record_tabular("TimeElapsed", time.time() - tstart)
+    logger.record_tabular('TimestepsUsed', (epoch + 1) * timesteps_per_batch)
+    logger.dump_tabular()
+
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     # Initialize state variables
@@ -73,6 +151,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             ob = env.reset()
         t += 1
 
+
 def add_vtarg_and_adv(seg, gamma, lam):
     new = np.append(seg["new"], 0) # last element is only used for last vtarg, but we already zeroed it if last new = 1
     vpred = np.append(seg["vpred"], seg["nextvpred"])
@@ -86,11 +165,12 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
+
 def learn(*,
         network,
         env,
-        total_timesteps,
-        timesteps_per_batch=1024, # what to train on
+        eval_env,
+        timesteps_per_batch=1000, # what to train on
         max_kl=0.001,
         cg_iters=10,
         gamma=0.99,
@@ -100,9 +180,12 @@ def learn(*,
         cg_damping=1e-2,
         vf_stepsize=3e-4,
         vf_iters =3,
-        max_episodes=0, max_iters=0,  # time constraint
+        num_epochs=1000,
         callback=None,
         load_path=None,
+        log_dir=None,
+        env_id=None,
+        evaluation_freq=10,
         **network_kwargs
         ):
     '''
@@ -150,6 +233,10 @@ def learn(*,
 
     '''
 
+    # configure log
+    log_dir = os.path.join("log", "trpo", env_id, str(seed))
+    logger.configure(dir=log_dir)
+
     if MPI is not None:
         nworkers = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
@@ -161,9 +248,8 @@ def learn(*,
     U.get_session(config=tf.ConfigProto(
             allow_soft_placement=True,
             inter_op_parallelism_threads=cpus_per_worker,
-            intra_op_parallelism_threads=cpus_per_worker
+            intra_op_parallelism_threads=cpus_per_worker,
     ))
-
 
     policy = build_policy(env, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
@@ -276,22 +362,9 @@ def learn(*,
     lenbuffer = deque(maxlen=40) # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
 
-    if sum([max_iters>0, total_timesteps>0, max_episodes>0])==0:
-        # noththing to be done
-        return pi
-
-    assert sum([max_iters>0, total_timesteps>0, max_episodes>0]) < 2, \
-        'out of max_iters, total_timesteps, and max_episodes only one should be specified'
-
-    while True:
+    for epoch in range(num_epochs):
         if callback: callback(locals(), globals())
-        if total_timesteps and timesteps_so_far >= total_timesteps:
-            break
-        elif max_episodes and episodes_so_far >= max_episodes:
-            break
-        elif max_iters and iters_so_far >= max_iters:
-            break
-        logger.log("********** Iteration %i ************"%iters_so_far)
+        logger.log("********** Epoch  %i ************"%epoch)
 
         with timed("sampling"):
             seg = seg_gen.__next__()
@@ -302,11 +375,12 @@ def learn(*,
         vpredbefore = seg["vpred"] # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
 
-        if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)
+        # if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)
         if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
 
         args = seg["ob"], seg["ac"], atarg
         fvpargs = [arr[::5] for arr in args]
+
         def fisher_vector_product(p):
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
 
@@ -352,56 +426,34 @@ def learn(*,
                 paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum())) # list of tuples
                 assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
 
-        for (lossname, lossval) in zip(loss_names, meanlosses):
-            logger.record_tabular(lossname, lossval)
-
         with timed("vf"):
-
             for _ in range(vf_iters):
                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                 include_final_partial_batch=False, batch_size=64):
                     g = allmean(compute_vflossandgrad(mbob, mbret))
                     vfadam.update(g, vf_stepsize)
 
-        logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-
-        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-        if MPI is not None:
-            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-        else:
-            listoflrpairs = [lrlocal]
-
-        lens, rews = map(flatten_lists, zip(*listoflrpairs))
-        lenbuffer.extend(lens)
-        rewbuffer.extend(rews)
-
-        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-        logger.record_tabular("EpThisIter", len(lens))
-        episodes_so_far += len(lens)
-        timesteps_so_far += sum(lens)
-        iters_so_far += 1
-
-        logger.record_tabular("EpisodesSoFar", episodes_so_far)
-        logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        logger.record_tabular("TimeElapsed", time.time() - tstart)
-
-        if rank==0:
-            logger.dump_tabular()
+        if epoch % evaluation_freq == 0:
+            evaluate_policy(pi, eval_env, epoch, timesteps_per_batch, tstart)
 
     return pi
+
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
 
+
 def get_variables(scope):
     return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
+
 
 def get_trainable_variables(scope):
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
+
 def get_vf_trainable_variables(scope):
     return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]
+
 
 def get_pi_trainable_variables(scope):
     return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]
