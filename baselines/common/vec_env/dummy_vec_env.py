@@ -2,6 +2,7 @@ import numpy as np
 from .vec_env import VecEnv
 from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
+
 class DummyVecEnv(VecEnv):
     """
     VecEnv that does runs multiple environments sequentially, that is,
@@ -19,9 +20,9 @@ class DummyVecEnv(VecEnv):
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
         obs_space = env.observation_space
-        self.keys, shapes, dtypes = obs_space_info(obs_space)
+        self.keys, shapes = obs_space_info(obs_space)
 
-        self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
+        self.buf_obs = {k: np.zeros((self.num_envs,) + tuple(shapes[k])) for k in self.keys}
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
@@ -45,8 +46,6 @@ class DummyVecEnv(VecEnv):
     def step_wait(self):
         for e in range(self.num_envs):
             action = self.actions[e]
-            # if isinstance(self.envs[e].action_space, spaces.Discrete):
-            #    action = int(action)
 
             obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
             if self.buf_dones[e]:
