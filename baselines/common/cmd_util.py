@@ -63,14 +63,14 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
     else:
         env = gym.make(env_id)
 
-    if flatten_dict_observations and isinstance(env.observation_space, gym.spaces.Dict):
-        keys = env.observation_space.spaces.keys()
-        env = gym.wrappers.FlattenDictWrapper(env, dict_keys=list(keys))
+    # if flatten_dict_observations and isinstance(env.observation_space, gym.spaces.Dict):
+    #     keys = env.observation_space.spaces.keys()
+    #     env = gym.wrappers.FlattenDictWrapper(env, dict_keys=list(keys))
 
     env.seed(seed + subrank if seed is not None else None)
-    env = Monitor(env,
-                  logger_dir and os.path.join(logger_dir, str(mpi_rank) + '.' + str(subrank)),
-                  allow_early_resets=True)
+    # env = Monitor(env,
+    #               logger_dir and os.path.join(logger_dir, str(mpi_rank) + '.' + str(subrank)),
+    #               allow_early_resets=True)
 
     if env_type == 'atari':
         env = wrap_deepmind(env, **wrapper_kwargs)
