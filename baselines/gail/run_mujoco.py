@@ -43,6 +43,7 @@ def argsparser():
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
+    boolean_flag(parser, 'gaussian_fixed_var', default=False, help='use the fixed var for each state')
     # Algorithms Configuration
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
@@ -72,7 +73,7 @@ def get_task_name(args):
     task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
         ".policy_entcoeff_" + str(args.policy_entcoeff) \
         + ".adversary_entcoeff_" + str(args.adversary_entcoeff) + ".delay_freq" + str(args.delay_freq) \
-        + ".timesteps_per_batch" + str(args.timesteps_per_batch)
+        + ".timesteps_per_batch" + str(args.timesteps_per_batch) + ".gaussian_fixed_var" + str(args.gaussian_fixed_var)
     task_name += ".seed_" + str(args.seed)
     return task_name
 
@@ -86,7 +87,7 @@ def main(args):
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
+                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2, gaussian_fixed_var=args.gaussian_fixed_var)
     env.seed(args.seed)
     eval_env.seed(args.seed)
 
