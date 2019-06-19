@@ -244,7 +244,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
     all_var_list = pi.get_trainable_variables()
     var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
     vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
-    assert len(var_list) == len(vf_var_list) + 1
+    # assert len(var_list) == len(vf_var_list) + 1
     d_adam = MpiAdam(reward_giver.get_trainable_variables())
     vfadam = MpiAdam(vf_var_list)
 
