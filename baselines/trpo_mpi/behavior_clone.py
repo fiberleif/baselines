@@ -50,7 +50,7 @@ def learn(ob, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     ac = pi.pdtype.sample_placeholder([None])
     # stochastic = U.get_placeholder_cached(name="stochastic")
     loss = tf.reduce_mean(tf.square(ac-pi.pi))
-    var_list = pi.get_trainable_variables()
+    var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "pi")
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
     # lossandgrad = U.function([ob, ac, stochastic], [loss]+[U.flatgrad(loss, var_list)])
     lossandgrad = U.function([ob, ac], [loss] + [U.flatgrad(loss, var_list)])
