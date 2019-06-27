@@ -27,7 +27,7 @@ def mujoco():
         lam=0.98,
         vf_iters=5,
         vf_stepsize=1e-3,
-        normalize_observations=True,
+        normalize_observations=False,
         evaluate_freq=10,
         num_epochs=1000,
     )

@@ -12,6 +12,7 @@ from baselines.common.cg import cg
 from baselines.common.input import observation_placeholder
 from baselines.common.policies import build_policy
 from contextlib import contextmanager
+from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 
 try:
     from mpi4py import MPI
@@ -186,6 +187,9 @@ def learn(*,
         log_dir=None,
         env_id=None,
         evaluation_freq=10,
+        pretrain=False,
+        expert_path=None,
+        BC_max_iter=1e4,
         **network_kwargs
         ):
     '''
@@ -233,8 +237,8 @@ def learn(*,
 
     '''
 
-    # configure log
-    log_dir = os.path.join("log", "trpo", env_id, str(seed))
+    # Configure log.
+    log_dir = os.path.join("log", "trpo", env_id, "pretrained_" + str(pretrain), str(seed))
     logger.configure(dir=log_dir)
 
     if MPI is not None:
@@ -254,6 +258,8 @@ def learn(*,
     policy = build_policy(env, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
 
+    # Pretrain.
+    dataset = Mujoco_Dset(expert_path=expert_path)
     np.set_printoptions(precision=3)
     # Setup losses and stuff
     # ----------------------------------------
@@ -261,6 +267,14 @@ def learn(*,
     ac_space = env.action_space
 
     ob = observation_placeholder(ob_space)
+
+    pretrained_weight = None
+    if pretrain and (BC_max_iter > 0):
+        # Pretrain with behavior cloning
+        from baselines.trpo_mpi import behavior_clone
+        pretrained_weight = behavior_clone.learn(ob, policy, dataset,
+                                                 max_iters=BC_max_iter)
+
     with tf.variable_scope("pi"):
         pi = policy(observ_placeholder=ob)
     with tf.variable_scope("oldpi"):
@@ -351,6 +365,12 @@ def learn(*,
     vfadam.sync()
     print("Init param sum", th_init.sum(), flush=True)
 
+    # if provide pretrained weight
+    if pretrained_weight is not None:
+        U.load_variables(pretrained_weight, variables=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "pi"))
+
+    evaluate_policy(pi, eval_env, -1, timesteps_per_batch, 0)
+
     # Prepare for rollouts
     # ----------------------------------------
     seg_gen = traj_segment_generator(pi, env, timesteps_per_batch, stochastic=True)
@@ -429,7 +449,7 @@ def learn(*,
         with timed("vf"):
             for _ in range(vf_iters):
                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
-                include_final_partial_batch=False, batch_size=64):
+                        include_final_partial_batch=False, batch_size=64):
                     g = allmean(compute_vflossandgrad(mbob, mbret))
                     vfadam.update(g, vf_stepsize)
 
