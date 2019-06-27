@@ -274,6 +274,7 @@ def learn(*,
         from baselines.trpo_mpi import behavior_clone
         pretrained_weight, pi = behavior_clone.learn(ob, policy, mujo_dataset,
                                                  max_iters=BC_max_iter)
+        evaluate_policy(pi, eval_env, -2, timesteps_per_batch, 0)
     else:
         with tf.variable_scope("pi"):
             pi = policy(observ_placeholder=ob)
