@@ -259,7 +259,7 @@ def learn(*,
     set_global_seeds(seed)
 
     # Pretrain.
-    dataset = Mujoco_Dset(expert_path=expert_path)
+    mujo_dataset = Mujoco_Dset(expert_path=expert_path)
     np.set_printoptions(precision=3)
     # Setup losses and stuff
     # ----------------------------------------
@@ -272,7 +272,7 @@ def learn(*,
     if pretrain and (BC_max_iter > 0):
         # Pretrain with behavior cloning
         from baselines.trpo_mpi import behavior_clone
-        pretrained_weight, pi = behavior_clone.learn(ob, policy, dataset,
+        pretrained_weight, pi = behavior_clone.learn(ob, policy, mujo_dataset,
                                                  max_iters=BC_max_iter)
     else:
         with tf.variable_scope("pi"):
