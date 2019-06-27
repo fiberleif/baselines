@@ -44,7 +44,7 @@ def learn(ob, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
 
     val_per_iter = int(max_iters/10)
     with tf.variable_scope("pi"):
-        pi = policy_func(observ_placeholder=ob, reuse=False)
+        pi = policy_func(observ_placeholder=ob)
     # placeholder
     # ob = U.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
