@@ -272,11 +272,12 @@ def learn(*,
     if pretrain and (BC_max_iter > 0):
         # Pretrain with behavior cloning
         from baselines.trpo_mpi import behavior_clone
-        pretrained_weight = behavior_clone.learn(ob, policy, dataset,
+        pretrained_weight, pi = behavior_clone.learn(ob, policy, dataset,
                                                  max_iters=BC_max_iter)
+    else:
+        with tf.variable_scope("pi"):
+            pi = policy(observ_placeholder=ob)
 
-    with tf.variable_scope("pi"):
-        pi = policy(observ_placeholder=ob)
     with tf.variable_scope("oldpi"):
         oldpi = policy(observ_placeholder=ob)
 

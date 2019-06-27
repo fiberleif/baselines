@@ -72,7 +72,7 @@ def learn(ob, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     else:
         savedir_fname = osp.join(ckpt_dir, task_name)
     U.save_variables(savedir_fname, variables=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "pi"))
-    return savedir_fname
+    return savedir_fname, pi
 
 
 def get_task_name(args):
