@@ -46,7 +46,7 @@ def learn(ob, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     with tf.variable_scope("pi"):
         pi = policy_func(observ_placeholder=ob)
     # placeholder
-    ob = U.get_placeholder_cached(name="ob")
+    # ob = U.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
     stochastic = U.get_placeholder_cached(name="stochastic")
     loss = tf.reduce_mean(tf.square(ac-pi.ac))
