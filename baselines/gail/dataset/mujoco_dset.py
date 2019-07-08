@@ -40,30 +40,44 @@ class Dset(object):
 
 
 class Mujoco_Dset(object):
-    def __init__(self, expert_path, train_fraction=0.7, traj_limitation=-1, randomize=True):
+    def __init__(self, expert_path, train_fraction=0.7, traj_limitation=-1, data_subsample_freq=1, randomize=True):
         traj_data = np.load(expert_path)
         if traj_limitation < 0:
             traj_limitation = len(traj_data['obs'])
         obs = traj_data['obs'][:traj_limitation]
         acs = traj_data['acs'][:traj_limitation]
+        traj_lens = traj_data['ep_lens'][:traj_limitation]
+        self.rets = traj_rets = traj_data['ep_rets'][:traj_limitation]
+
+        print('Expert dataset size: {0} transitions ({1} trajectories)'.format(traj_lens.sum(), len(traj_lens)))
+        print('Expert average return:', traj_rets.sum(axis=1).mean())
+
+        # Subsample trajs
+        start_times = np.random.randint(0, data_subsample_freq, size=obs.shape[0])
+        subsample_obs = np.concatenate([obs[i, start_times[i]:l:data_subsample_freq, :]
+                                         for i, l in enumerate(traj_lens)], axis=0)
+        subsample_acs = np.concatenate([acs[i, start_times[i]:l:data_subsample_freq, :]
+                                         for i, l in enumerate(traj_lens)], axis=0)
+        stacked = np.concatenate(
+        [np.arange(start_times[i], l, step=data_subsample_freq) for i, l in enumerate(traj_lens)]).astype(float)
+
+        print('Subsample data every {0} timesteps'.format(data_subsample_freq))
+        print('Final dataset size: {0} transitions (average {1} per traj)'.format(stacked.shape[0],
+                                            float(stacked.shape[0])/traj_lens.shape[0]))
 
         # obs, acs: shape (N, L, ) + S where N = # episodes, L = episode length
         # and S is the environment observation/action space.
         # Flatten to (N * L, prod(S))
         if len(obs.shape[2:]) != 0:
-            self.obs = np.reshape(obs, [-1, np.prod(obs.shape[2:])])
-            self.acs = np.reshape(acs, [-1, np.prod(acs.shape[2:])])
+            self.obs = np.reshape(obs, [-1, np.prod(subsample_obs.shape[2:])])
+            self.acs = np.reshape(acs, [-1, np.prod(subsample_acs.shape[2:])])
         else:
-            self.obs = np.vstack(obs)
-            self.acs = np.vstack(acs)
+            self.obs = np.vstack(subsample_obs)
+            self.acs = np.vstack(subsample_acs)
 
-        self.rets = traj_data['ep_rets'][:traj_limitation]
-        self.avg_ret = sum(self.rets)/len(self.rets)
-        self.std_ret = np.std(np.array(self.rets))
         if len(self.acs) > 2:
             self.acs = np.squeeze(self.acs)
         assert len(self.obs) == len(self.acs)
-        self.num_traj = min(traj_limitation, len(traj_data['obs']))
         self.num_transition = len(self.obs)
         self.randomize = randomize
         self.dset = Dset(self.obs, self.acs, self.randomize)
@@ -74,13 +88,6 @@ class Mujoco_Dset(object):
         self.val_set = Dset(self.obs[int(self.num_transition*train_fraction):, :],
                             self.acs[int(self.num_transition*train_fraction):, :],
                             self.randomize)
-        self.log_info()
-
-    def log_info(self):
-        logger.log("Total trajectorues: %d" % self.num_traj)
-        logger.log("Total transitions: %d" % self.num_transition)
-        logger.log("Average returns: %f" % self.avg_ret)
-        logger.log("Std for returns: %f" % self.std_ret)
 
     def get_next_batch(self, batch_size, split=None):
         if split is None:
