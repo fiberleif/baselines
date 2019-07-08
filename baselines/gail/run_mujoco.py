@@ -207,6 +207,9 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     avg_ret = sum(ret_list)/len(ret_list)
     print("Average length:", avg_len)
     print("Average return:", avg_ret)
+    print("Std return:", np.std(ret_list))
+    print("Max return:", np.max(ret_list))
+    print("Min return:", np.min(ret_list))
     return avg_len, avg_ret
 
 
