@@ -30,6 +30,7 @@ def argsparser():
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
+    parser.add_argument('--subsample_freq', type=int, default=20)
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     # for evaluatation
@@ -101,7 +102,7 @@ def main(args):
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
     args.log_dir = osp.join(args.log_dir, task_name)
-    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
     savedir_fname = learn(env,
                           policy_fn,
                           dataset,
