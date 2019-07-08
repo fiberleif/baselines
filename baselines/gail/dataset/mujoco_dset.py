@@ -50,7 +50,7 @@ class Mujoco_Dset(object):
         self.rets = traj_rets = traj_data['ep_rets'][:traj_limitation]
 
         print('Expert dataset size: {0} transitions ({1} trajectories)'.format(traj_lens.sum(), len(traj_lens)))
-        print('Expert average return:', traj_rets.sum(axis=1).mean())
+        print('Expert average return:', traj_rets.mean())
 
         # Subsample trajs
         start_times = np.random.randint(0, data_subsample_freq, size=obs.shape[0])
