@@ -54,9 +54,9 @@ class Mujoco_Dset(object):
 
         # Subsample trajs
         start_times = np.random.randint(0, data_subsample_freq, size=obs.shape[0])
-        subsample_obs = np.concatenate([obs[i, start_times[i]:l:data_subsample_freq, :]
+        self.obs = np.concatenate([obs[i, start_times[i]:l:data_subsample_freq, :]
                                          for i, l in enumerate(traj_lens)], axis=0)
-        subsample_acs = np.concatenate([acs[i, start_times[i]:l:data_subsample_freq, :]
+        self.acs = np.concatenate([acs[i, start_times[i]:l:data_subsample_freq, :]
                                          for i, l in enumerate(traj_lens)], axis=0)
         stacked = np.concatenate(
         [np.arange(start_times[i], l, step=data_subsample_freq) for i, l in enumerate(traj_lens)]).astype(float)
@@ -68,12 +68,12 @@ class Mujoco_Dset(object):
         # obs, acs: shape (N, L, ) + S where N = # episodes, L = episode length
         # and S is the environment observation/action space.
         # Flatten to (N * L, prod(S))
-        if len(obs.shape[2:]) != 0:
-            self.obs = np.reshape(obs, [-1, np.prod(subsample_obs.shape[2:])])
-            self.acs = np.reshape(acs, [-1, np.prod(subsample_acs.shape[2:])])
-        else:
-            self.obs = np.vstack(subsample_obs)
-            self.acs = np.vstack(subsample_acs)
+        # if len(obs.shape[2:]) != 0:
+        #     self.obs = np.reshape(obs, [-1, np.prod(subsample_obs.shape[2:])])
+        #     self.acs = np.reshape(acs, [-1, np.prod(subsample_acs.shape[2:])])
+        # else:
+        #     self.obs = np.vstack(subsample_obs)
+        #     self.acs = np.vstack(subsample_acs)
 
         if len(self.acs) > 2:
             self.acs = np.squeeze(self.acs)
