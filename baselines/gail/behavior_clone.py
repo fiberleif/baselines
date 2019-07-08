@@ -49,7 +49,6 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
-    if hasattr(pi, "ob_rms"): pi.ob_rms.update(dataset.obs)  # update running mean/std for policy
     # placeholder
     ob = U.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
@@ -61,6 +60,8 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
 
     U.initialize()
     adam.sync()
+
+    if hasattr(pi, "ob_rms"): pi.ob_rms.update(dataset.obs)  # update running mean/std for policy
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
         ob_expert, ac_expert = dataset.get_next_batch(optim_batch_size, 'train')
