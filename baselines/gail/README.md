@@ -16,7 +16,11 @@ cp -r ~/demo_dataset dataset/
 ```bash
 CUDA_VISIBLE_DEVICES=0 python baselines/gail/behavior_clone.py --env_id Hopper-v1
 ```
+
 Tips: if you want to run BC in other tasks, you only need to change the argument of env_id: ```--env_id```.
+
+See help (`-h`) for more options.
+
 ### Step 2: Run GAIL
 
 
@@ -25,22 +29,9 @@ Tips: if you want to run BC in other tasks, you only need to change the argument
 python baselines/gail/run_mujoco.py --env_id Hopper
 ```
 
-
-
-See help (`-h`) for more options.
-
-#### In case you want to run Behavior Cloning (BC)
-
-```bash
-python -m baselines.gail.behavior_clone
-```
-
 See help (`-h`) for more options.
 
 
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/openai/baselines/pulls.
 
 ## Maintainers
 
