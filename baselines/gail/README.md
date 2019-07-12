@@ -14,23 +14,18 @@ cp -r ~/demo_dataset dataset/
 
 ### Step 2: Run Behavior Clone
 ```bash
-python baselines/gail/behavior_clone.py --env_id Hopper-v1
+CUDA_VISIBLE_DEVICES=0 python baselines/gail/behavior_clone.py --env_id Hopper-v1
 ```
-tips: use ```CUDA_VISIBLE_DEVICES=```
-
+Tips: if you want to run BC in other tasks, you only need to change the argument of env_id: ```--env_id```.
 ### Step 2: Run GAIL
 
-Run with single thread:
+
 
 ```bash
-python -m baselines.gail.run_mujoco
+python baselines/gail/run_mujoco.py --env_id Hopper
 ```
 
-Run with multiple threads:
 
-```bash
-mpirun -np 16 python -m baselines.gail.run_mujoco
-```
 
 See help (`-h`) for more options.
 
