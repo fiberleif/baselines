@@ -9,7 +9,7 @@
 
  ```bash
 mkdir dataset
-cp -r ~/demo_dataset dataset/
+cp ~/demo_dataset/* dataset/
 ```
 
 ### Step 2: Run Behavior Clone
