@@ -2,13 +2,21 @@
 
 - Original paper: https://arxiv.org/abs/1606.03476
 
-For results benchmarking on MuJoCo, please navigate to [here](result/gail-result.md)
 
-## If you want to train an imitation learning agent
+## Guide on running BC/GAIL Baselines
 
-### Step 1: Download expert data
+### Step 1: Set expert data (demonstrations)
 
-Download the expert data into `./data`, [download link](https://drive.google.com/drive/folders/1h3H4AY_ZBx08hz-Ct0Nxxus-V1melu1U?usp=sharing)
+ ```bash
+mkdir dataset
+cp -r ~/demo_dataset dataset/
+```
+
+### Step 2: Run Behavior Clone
+```bash
+python baselines/gail/behavior_clone.py --env_id Hopper-v1
+```
+tips: use ```CUDA_VISIBLE_DEVICES=```
 
 ### Step 2: Run GAIL
 

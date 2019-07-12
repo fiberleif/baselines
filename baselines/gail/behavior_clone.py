@@ -8,6 +8,7 @@ import os.path as osp
 import gym
 import logging
 from tqdm import tqdm
+import os
 
 import tensorflow as tf
 
@@ -53,7 +54,8 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     ob = U.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
     stochastic = U.get_placeholder_cached(name="stochastic")
-    loss = tf.reduce_mean(tf.square(ac-pi.ac))
+    # loss = tf.reduce_mean(tf.square(ac-pi.ac))
+    loss = tf.reduce_mean(pi.pd.neglogp(ac))
     var_list = pi.get_trainable_variables()
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
     lossandgrad = U.function([ob, ac, stochastic], [loss]+[U.flatgrad(loss, var_list)])
@@ -65,11 +67,11 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
         ob_expert, ac_expert = dataset.get_next_batch(optim_batch_size, 'train')
-        train_loss, g = lossandgrad(ob_expert, ac_expert, True)
+        train_loss, g = lossandgrad(ob_expert, ac_expert, False)
         adam.update(g, optim_stepsize)
         if verbose and iter_so_far % val_per_iter == 0:
             ob_expert, ac_expert = dataset.get_next_batch(-1, 'val')
-            val_loss, _ = lossandgrad(ob_expert, ac_expert, True)
+            val_loss, _ = lossandgrad(ob_expert, ac_expert, False)
             logger.log("Training loss: {}, Validation loss: {}".format(train_loss, val_loss))
 
     if ckpt_dir is None:
@@ -96,7 +98,7 @@ def main(args):
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
+                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2, gaussian_fixed_var=False)
     env = bench.Monitor(env, logger.get_dir() and
                         osp.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
@@ -104,6 +106,7 @@ def main(args):
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
     args.log_dir = osp.join(args.log_dir, task_name)
+    args.expert_path = 'dataset/{}.npz'.format(args.env_id).lower().replace("-v1", "")  # set expert path
     dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
     savedir_fname = learn(env,
                           policy_fn,
@@ -121,6 +124,14 @@ def main(args):
                               stochastic_policy=args.stochastic_policy,
                               save=args.save_sample,
                               reuse=True)
+
+    if not os.path.exists("./log"):
+        os.mkdir("./log")
+    log_file = "run_bc_env_" + args.env_id + "_loss_mode_" + args.loss_mode + "_traj_limitation_" + \
+               str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
+    with open(os.path.join("log", log_file), 'w') as outfile:
+        outfile.write("avg_len: {}".format(avg_len) + "\n")
+        outfile.write('avg_ret: {}'.format(avg_ret) + "\n")
 
 
 if __name__ == '__main__':
