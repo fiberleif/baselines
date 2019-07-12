@@ -35,6 +35,7 @@ def argsparser():
     # Train Configuration
     # Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
+    parser.add_argument('--subsample_freq', type=int, default=20)
     # Optimization Configuration
     parser.add_argument('--timesteps_per_batch', help='number of timesteps in each batch', type=int, default=1000)
     parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
@@ -96,7 +97,7 @@ def main(args):
     args.log_dir = osp.join(args.log_dir, task_name)
 
     if args.task == 'train':
-        dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+        dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
         reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
         train(env,
               eval_env,
