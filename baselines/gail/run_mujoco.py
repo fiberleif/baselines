@@ -15,7 +15,6 @@ from baselines.common.misc_util import boolean_flag
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
-from baselines.gail.delay_env_wrapper import DelayRewardWrapper
 
 
 def argsparser():
@@ -24,7 +23,7 @@ def argsparser():
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--max_path_length', help='Max path length', type=int, default=1000)
-    parser.add_argument('--delay_freq', help='Delay frequency', type=int, default=10)
+    # parser.add_argument('--delay_freq', help='Delay frequency', type=int, default=10)
     parser.add_argument('--expert_path', type=str, default='dataset/hopper.npz')
     # Task Configuration
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
@@ -82,7 +81,7 @@ def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
     env = gym.make(args.env_id)
-    env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
+    # env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
     eval_env = gym.make(args.env_id)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
