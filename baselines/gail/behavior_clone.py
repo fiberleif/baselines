@@ -126,7 +126,7 @@ def main(args):
                               reuse=True)
 
     if not os.path.exists("./log/BC"):
-        os.mkdir("./log/BC")
+        os.makedirs("./log/BC")
     log_file = "run_bc_env_" + args.env_id + "_loss_mode_" + args.loss_mode + "_traj_limitation_" + \
                str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
     with open(os.path.join("log", log_file), 'w') as outfile:
