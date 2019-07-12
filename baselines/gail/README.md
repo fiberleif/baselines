@@ -26,7 +26,7 @@ See help (`-h`) for more options.
 
 
 ```bash
-python baselines/gail/run_mujoco.py --env_id Hopper
+python baselines/gail/run_mujoco.py --env_id Hopper-v1
 ```
 
 See help (`-h`) for more options.
