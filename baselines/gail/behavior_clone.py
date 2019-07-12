@@ -129,7 +129,7 @@ def main(args):
         os.makedirs("./log/BC")
     log_file = "run_bc_env_" + args.env_id + "_traj_limitation_" + \
                str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
-    with open(os.path.join("log", log_file), 'w') as outfile:
+    with open(os.path.join("log", "BC", log_file), 'w') as outfile:
         outfile.write("avg_len: {}".format(avg_len) + "\n")
         outfile.write('avg_ret: {}'.format(avg_ret) + "\n")
 
