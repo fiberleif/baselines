@@ -26,7 +26,7 @@ def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of Behavior Cloning")
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--expert_path', type=str, default='data/deterministic.trpo.Hopper.0.00.npz')
+    parser.add_argument('--expert_path', type=str, default='dataset/hopper.npz')
     parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
     #  Mujoco Dataset Configuration

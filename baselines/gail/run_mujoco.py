@@ -50,7 +50,7 @@ def argsparser():
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Training Configuration
-    parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=1e3)
+    parser.add_argument('--num_epochs', help='Number of training epochs', type=int, default=2e3)
     parser.add_argument('--evaluation_freq', help='Number of updates to evaluate', type=int, default=10)
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
     parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)

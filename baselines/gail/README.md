@@ -26,6 +26,8 @@ See help (`-h`) for more options.
 CUDA_VISIBLE_DEVICES=0 python baselines/gail/run_mujoco.py --env_id Hopper-v1
 ```
 
+Tips: if you want to run GAIL in other tasks, you only need to change the argument of env_id: ```--env_id```.
+
 See help (`-h`) for more options.
 
 ### Step 4: Script for Building BC & GAIL Baselines
