@@ -3,9 +3,9 @@
 - Original paper: https://arxiv.org/abs/1606.03476
 
 
-## Guide on running BC/GAIL Baselines
+## Guide on Running BC/GAIL Baselines
 
-### Step 1: Set expert data (demonstrations)
+### Step 1: Prepare Expert Data
 
  ```bash
 mkdir dataset
@@ -21,17 +21,19 @@ Tips: if you want to run BC in other tasks, you only need to change the argument
 
 See help (`-h`) for more options.
 
-### Step 2: Run GAIL
-
-
-
+### Step 3: Run GAIL
 ```bash
 CUDA_VISIBLE_DEVICES=0 python baselines/gail/run_mujoco.py --env_id Hopper-v1
 ```
 
 See help (`-h`) for more options.
 
-
+### Step 4: Script for Building BC & GAIL Baselines
+```bash
+python bc_mujoco_run.py --gpu_id 0 # run BC baseline
+python gail_mujoco_run.py --gpu_id 1 # run GAIL baseline  
+```
+Tips: we can use ```-g``` to replace ```--gpu_id``` here for convenience.
 
 ## Maintainers
 
