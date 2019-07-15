@@ -116,22 +116,22 @@ def main(args):
                           log_dir=args.log_dir,
                           task_name=task_name,
                           verbose=True)
-    avg_len, avg_ret = runner(env,
-                              policy_fn,
-                              savedir_fname,
-                              timesteps_per_batch=1024,
-                              number_trajs=10,
-                              stochastic_policy=args.stochastic_policy,
-                              save=args.save_sample,
-                              reuse=True)
+    eval_infos = runner(env,
+                          policy_fn,
+                          savedir_fname,
+                          timesteps_per_batch=1024,
+                          number_trajs=10,
+                          stochastic_policy=args.stochastic_policy,
+                          save=args.save_sample,
+                          reuse=True)
 
     if not os.path.exists("./log/BC"):
         os.makedirs("./log/BC")
     log_file = "run_bc_env_" + args.env_id + "_traj_limitation_" + \
                str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
     with open(os.path.join("log", "BC", log_file), 'w') as outfile:
-        outfile.write("avg_len: {}".format(avg_len) + "\n")
-        outfile.write('avg_ret: {}'.format(avg_ret) + "\n")
+        for info in eval_infos:
+            outfile.write(info + "\n")
 
 
 if __name__ == '__main__':

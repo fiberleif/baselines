@@ -203,14 +203,16 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
         filename = load_model_path.split('/')[-1] + '.' + env.spec.id
         np.savez(filename, obs=np.array(obs_list), acs=np.array(acs_list),
                  lens=np.array(len_list), rets=np.array(ret_list))
-    avg_len = sum(len_list)/len(len_list)
-    avg_ret = sum(ret_list)/len(ret_list)
-    print("Average length:", avg_len)
-    print("Average return:", avg_ret)
-    print("Std return:", np.std(ret_list))
-    print("Max return:", np.max(ret_list))
-    print("Min return:", np.min(ret_list))
-    return avg_len, avg_ret
+
+    output_infos = ["average return: {}".format(np.mean(ret_list)),
+                    "std of return: {}".format(np.std(ret_list)),
+                    "max of return: {}".format(np.max(ret_list)),
+                    "min of return: {}".format(np.min(ret_list)),]
+
+    for info in output_infos:
+        print(info + "\n")
+
+    return output_infos
 
 
 # Sample one trajectory (until trajectory end)
