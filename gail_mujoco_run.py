@@ -24,8 +24,8 @@ def run_job(hyper_keys, hyper_values, gpu_id):
     BASH = "CUDA_VISIBLE_DEVICES={} python baselines/gail/run_mujoco.py".format(gpu_id)
     for key, value in zip(hyper_keys, hyper_values):
         BASH += " --{0} {1}".format(key, value)
-    BASH += "--num_epochs {}".format(NUM_EPOCHS[hyper_values[0]])
-    BASH += "--timesteps_per_batch".format(TIMESTEPS_PER_BATCHS[hyper_values[0]])
+    BASH += "--num_epochs {0}".format(NUM_EPOCHS[hyper_values[0]])
+    BASH += "--timesteps_per_batch {0}".format(TIMESTEPS_PER_BATCHS[hyper_values[0]])
     os.system(BASH)
 
 
