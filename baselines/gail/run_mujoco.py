@@ -64,17 +64,17 @@ def argsparser():
 
 
 def get_task_name(args):
-    task_name = args.algo + "_gail."
+    task_name = "run_gail_env_" + args.env_id
     if args.pretrained:
-        task_name += "with_pretrained."
+        task_name += "_with_pretrained."
     if args.traj_limitation != np.inf:
-        task_name += "transition_limitation_%d." % args.traj_limitation
-    task_name += args.env_id.split("-")[0]
-    task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
-        ".policy_entcoeff_" + str(args.policy_entcoeff) \
-        + ".adversary_entcoeff_" + str(args.adversary_entcoeff) \
-        + ".timesteps_per_batch" + str(args.timesteps_per_batch) + ".gaussian_fixed_var" + str(args.gaussian_fixed_var)
-    task_name += ".seed_" + str(args.seed)
+        task_name += "_traj_limitation_" + str(args.traj_limitation)
+        task_name += "_subsample_freq_" + str(args.subsample_freq)
+    task_name = task_name + "_g_step_" + str(args.g_step) + "_d_step_" + str(args.d_step) + \
+        "_policy_entcoeff_" + str(args.policy_entcoeff) \
+        + "_adversary_entcoeff_" + str(args.adversary_entcoeff) \
+        + "_timesteps_per_batch_" + str(args.timesteps_per_batch) + "_gaussian_fixed_var_" + str(args.gaussian_fixed_var)
+    task_name += "_seed_" + str(args.seed)
     return task_name
 
 
@@ -94,7 +94,7 @@ def main(args):
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
+    args.log_dir = osp.join(args.log_dir, "GAIL", task_name)
 
     if args.task == 'train':
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
