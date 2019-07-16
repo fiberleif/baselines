@@ -402,8 +402,8 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                 for _ in range(vf_iters):
                     for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                              include_final_partial_batch=False, batch_size=128):
-                        if hasattr(pi, "ob_rms"):
-                            pi.ob_rms.update(mbob)  # update running mean/std for policy
+                        if hasattr(pi, "obs_rms"):
+                            pi.obs_rms.update(mbob)  # update running mean/std for policy
                         g = allmean(compute_vflossandgrad(mbob, mbret))
                         vfadam.update(g, vf_stepsize)
 

@@ -20,13 +20,14 @@ def logit_bernoulli_entropy(logits):
 
 
 class TransitionClassifier(object):
-    def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):
+    def __init__(self, env, hidden_size, entcoeff=0.001, obs_normalize=False, scope="adversary"):
         self.scope = scope
         self.observation_shape = env.observation_space.shape
         self.actions_shape = env.action_space.shape
         self.input_shape = tuple([o+a for o, a in zip(self.observation_shape, self.actions_shape)])
         self.num_actions = env.action_space.shape[0]
         self.hidden_size = hidden_size
+        self.obs_normalize = obs_normalize
         self.build_ph()
         # Build grpah
         generator_logits = self.build_graph(self.generator_obs_ph, self.generator_acs_ph, reuse=False)
@@ -72,9 +73,12 @@ class TransitionClassifier(object):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
 
-            with tf.variable_scope("obfilter"):
-                self.obs_rms = RunningMeanStd(shape=self.observation_shape)
-            obs = (obs_ph - self.obs_rms.mean / self.obs_rms.std)
+            if self.obs_rms:
+                with tf.variable_scope("obfilter"):
+                    self.obs_rms = RunningMeanStd(shape=self.observation_shape)
+                obs = (obs_ph - self.obs_rms.mean) / self.obs_rms.std
+            else:
+                obs = obs_ph
             _input = tf.concat([obs, acs_ph], axis=1)  # concatenate the two input -> form a transition
             p_h1 = tf.contrib.layers.fully_connected(_input, self.hidden_size, activation_fn=tf.nn.tanh)
             p_h2 = tf.contrib.layers.fully_connected(p_h1, self.hidden_size, activation_fn=tf.nn.tanh)

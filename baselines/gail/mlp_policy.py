@@ -22,7 +22,7 @@ class MlpPolicy(object):
             self._init(*args, **kwargs)
             self.scope = tf.get_variable_scope().name
 
-    def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=False):
+    def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=False, obs_normalize=False):
         assert isinstance(ob_space, gym.spaces.Box)
 
         self.pdtype = pdtype = make_pdtype(ac_space)
@@ -30,10 +30,12 @@ class MlpPolicy(object):
 
         ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
 
-        with tf.variable_scope("obfilter"):
-            self.ob_rms = RunningMeanStd(shape=ob_space.shape)
-
-        obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+        if obs_normalize:
+            with tf.variable_scope("obfilter"):
+                self.obs_rms = RunningMeanStd(shape=ob_space.shape)
+            obz = tf.clip_by_value((ob - self.obs_rms.mean) / self.obs_rms.std, -5.0, 5.0)
+        else:
+            obz = ob
         last_out = obz
         for i in range(num_hid_layers):
             last_out = tf.nn.tanh(dense(last_out, hid_size, "vffc%i" % (i+1), weight_init=U.normc_initializer(1.0)))

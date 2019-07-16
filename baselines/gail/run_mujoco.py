@@ -46,6 +46,7 @@ def argsparser():
     boolean_flag(parser, 'gaussian_fixed_var', default=False, help='use the fixed var for each state')
     # Algorithms Configuration
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
+    boolean_flag(parser, 'obs_normalize', default=False, help='whether to perform obs normalization in the policy')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
@@ -66,7 +67,9 @@ def argsparser():
 def get_task_name(args):
     task_name = "run_gail_env_" + args.env_id
     if args.pretrained:
-        task_name += "_with_pretrained."
+        task_name += "_with_pretrained_"
+    if args.obs_normalize:
+        task_name += "_with_obs_normalize_"
     if args.traj_limitation != np.inf:
         task_name += "_traj_limitation_" + str(args.traj_limitation)
         task_name += "_subsample_freq_" + str(args.subsample_freq)
@@ -87,7 +90,8 @@ def main(args):
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2, gaussian_fixed_var=args.gaussian_fixed_var)
+                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2,
+                                    gaussian_fixed_var=args.gaussian_fixed_var, obs_normalize=args.obs_normalize)
     env.seed(args.seed)
     eval_env.seed(args.seed)
 
@@ -98,7 +102,7 @@ def main(args):
 
     if args.task == 'train':
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
-        reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
+        reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff, obs_normalize=args.obs_normalize)
         train(env,
               eval_env,
               args.seed,

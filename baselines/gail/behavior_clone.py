@@ -63,7 +63,7 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     U.initialize()
     adam.sync()
 
-    if hasattr(pi, "ob_rms"): pi.ob_rms.update(dataset.obs)  # update running mean/std for policy
+    if hasattr(pi, "obs_rms"): pi.obs_rms.update(dataset.obs)  # update running mean/std for policy
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
         ob_expert, ac_expert = dataset.get_next_batch(optim_batch_size, 'train')
