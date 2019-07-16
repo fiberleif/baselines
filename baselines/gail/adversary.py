@@ -73,7 +73,7 @@ class TransitionClassifier(object):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
 
-            if self.obs_rms:
+            if self.obs_normalize:
                 with tf.variable_scope("obfilter"):
                     self.obs_rms = RunningMeanStd(shape=self.observation_shape)
                 obs = (obs_ph - self.obs_rms.mean) / self.obs_rms.std
