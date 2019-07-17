@@ -67,9 +67,9 @@ def argsparser():
 def get_task_name(args):
     task_name = "run_gail_env_" + args.env_id
     if args.pretrained:
-        task_name += "_with_pretrained_"
+        task_name += "_with_pretrained"
     if args.obs_normalize:
-        task_name += "_with_obs_normalize_"
+        task_name += "_with_obs_normalize"
     if args.traj_limitation != np.inf:
         task_name += "_traj_limitation_" + str(args.traj_limitation)
         task_name += "_subsample_freq_" + str(args.subsample_freq)
