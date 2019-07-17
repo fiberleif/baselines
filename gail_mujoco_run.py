@@ -2,13 +2,22 @@ import os
 import argparse
 from itertools import product
 
+# TRAJ_LIMITATIONS = {
+#     "Hopper-v1": [4, 11, 18, 25],
+#     "HalfCheetah-v1": [4, 11, 18, 25],
+#     "Walker2d-v1": [4, 11, 18, 25],
+#     "Ant-v1": [4, 11, 18, 25],
+#     "Humanoid-v1": [80, 160, 240],
+# }
+
 TRAJ_LIMITATIONS = {
-    "Hopper-v1": [4, 11, 18, 25],
-    "HalfCheetah-v1": [4, 11, 18, 25],
-    "Walker2d-v1": [4, 11, 18, 25],
-    "Ant-v1": [4, 11, 18, 25],
-    "Humanoid-v1": [80, 160, 240],
+    "Hopper-v1": [25],
+    "HalfCheetah-v1": [25],
+    "Walker2d-v1": [25],
+    "Ant-v1": [25],
+    "Humanoid-v1": [240],
 }
+
 
 TIMESTEPS_PER_BATCHS = {
     "Hopper-v1": [1000],
@@ -31,7 +40,13 @@ NUM_EPOCHS = {
 def run_job(hyper_keys, hyper_values, gpu_id):
     BASH = "CUDA_VISIBLE_DEVICES={} python baselines/gail/run_mujoco.py".format(gpu_id)
     for key, value in zip(hyper_keys, hyper_values):
-        BASH += " --{0} {1}".format(key, value)
+        if 'obs_normalize' in key or 'pretrained' in key:
+            if value:
+                BASH += " --{0}".format(key)
+            else:
+                BASH += " --no-{0}".format(key)
+        else:
+            BASH += " --{0} {1}".format(key, value)
     os.system(BASH)
 
 
@@ -58,6 +73,7 @@ if __name__ == "__main__":
     algo_hyper_dict['subsample_freq'] = [20]
     algo_hyper_dict['num_epoch'] = NUM_EPOCHS[args.env_id]
     algo_hyper_dict['timesteps_per_batch'] = TIMESTEPS_PER_BATCHS[args.env_id]
+    algo_hyper_dict['obs_normalize'] = [True]
 
     # algo_hyper_dict['seed'] = [0, 1, 2]
     algo_hyper_keys = list(algo_hyper_dict.keys())
