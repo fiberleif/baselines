@@ -73,9 +73,8 @@ if __name__ == "__main__":
     algo_hyper_dict['subsample_freq'] = [20]
     algo_hyper_dict['num_epoch'] = NUM_EPOCHS[args.env_id]
     algo_hyper_dict['timesteps_per_batch'] = TIMESTEPS_PER_BATCHS[args.env_id]
-    algo_hyper_dict['obs_normalize'] = [True]
-
-    # algo_hyper_dict['seed'] = [0, 1, 2]
+    algo_hyper_dict['obs_normalize'] = [False, True]
+    algo_hyper_dict['seed'] = [0, 1, 2, 3, 4]
     algo_hyper_keys = list(algo_hyper_dict.keys())
 
     for variant in product(*algo_hyper_dict.values()):
