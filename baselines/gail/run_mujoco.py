@@ -183,10 +183,10 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space, reuse=reuse)
-    U.initialize()
+    # U.initialize()
     # Prepare for rollouts
     # ----------------------------------------
-    U.load_state(load_model_path)
+    # U.load_state(load_model_path)
 
     obs_list = []
     acs_list = []
@@ -208,13 +208,10 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
         np.savez(filename, obs=np.array(obs_list), acs=np.array(acs_list),
                  lens=np.array(len_list), rets=np.array(ret_list))
 
-    output_infos = ["average return: {}".format(np.mean(ret_list)),
-                    "std of return: {}".format(np.std(ret_list)),
-                    "max of return: {}".format(np.max(ret_list)),
-                    "min of return: {}".format(np.min(ret_list)),]
-
-    for info in output_infos:
-        print(info + "\n")
+    output_infos = {"avg_return": np.mean(ret_list),
+                    "std_return": np.std(ret_list),
+                    "max_return": np.max(ret_list),
+                    "min_return": np.min(ret_list),}
 
     return output_infos
 

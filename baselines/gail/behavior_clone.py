@@ -28,7 +28,7 @@ def argsparser():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--expert_path', type=str, default='dataset/hopper.npz')
     parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
-    parser.add_argument('--log_dir', help='the directory to save log file', default='log')
+    # parser.add_argument('--log_dir', help='the directory to save log file', default='log')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     parser.add_argument('--subsample_freq', type=int, default=20)
@@ -37,19 +37,17 @@ def argsparser():
     # for evaluatation
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
-    parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e5)
+    parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=2e4)
     return parser.parse_args()
 
 
 def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
-          adam_epsilon=1e-5, optim_stepsize=3e-4,
-          ckpt_dir=None, log_dir=None, task_name=None,
-          verbose=False):
+          adam_epsilon=1e-5, optim_stepsize=3e-4, verbose=False):
 
     val_per_iter = int(max_iters/10)
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
+    pi = policy_func("pi", ob_space, ac_space)  # construct network for new policy
     # placeholder
     ob = U.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
@@ -63,7 +61,9 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     U.initialize()
     adam.sync()
 
-    if hasattr(pi, "obs_rms"): pi.obs_rms.update(dataset.obs)  # update running mean/std for policy
+    if hasattr(pi, "obs_rms"):
+        pi.obs_rms.update(dataset.obs)  # update running mean/std for policy
+        print("Update obs normalization.")
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
         ob_expert, ac_expert = dataset.get_next_batch(optim_batch_size, 'train')
@@ -73,14 +73,18 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
             ob_expert, ac_expert = dataset.get_next_batch(-1, 'val')
             val_loss, _ = lossandgrad(ob_expert, ac_expert, False)
             logger.log("Training loss: {}, Validation loss: {}".format(train_loss, val_loss))
-
-    if ckpt_dir is None:
-        savedir_fname = tempfile.TemporaryDirectory().name
-    else:
-        savedir_fname = osp.join(ckpt_dir, task_name)
-    # U.save_variables(savedir_fname, var_list=pi.get_variables())
-    U.save_state(savedir_fname)
-    return savedir_fname
+            eval_infos = runner(env,
+                                policy_func,
+                                None,
+                                timesteps_per_batch=1024,
+                                number_trajs=10,
+                                stochastic_policy=args.stochastic_policy,
+                                save=args.save_sample,
+                                reuse=True)
+            logger.record_tabular("iter_so_far", iter_so_far + 1)
+            for (key, value) in eval_infos.items():
+                logger.record_tabular(key, value)
+            logger.dump_tabular()
 
 
 def get_task_name(args):
@@ -98,40 +102,37 @@ def main(args):
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2, gaussian_fixed_var=False)
+                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2,
+                                    gaussian_fixed_var=False, obs_normalize=True)
     env = bench.Monitor(env, logger.get_dir() and
                         osp.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
+
+    logger.configure(os.path.join("log", "BC", args.env_id, "subsample_{}".format(args.subsample_freq),
+                                  "traj_{}".format(args.traj_limitation)))
     args.expert_path = 'dataset/{}.npz'.format(args.env_id).lower().replace("-v1", "")  # set expert path
     dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
-    savedir_fname = learn(env,
-                          policy_fn,
-                          dataset,
-                          max_iters=args.BC_max_iter,
-                          ckpt_dir=args.checkpoint_dir,
-                          log_dir=args.log_dir,
-                          task_name=task_name,
-                          verbose=True)
-    eval_infos = runner(env,
-                          policy_fn,
-                          savedir_fname,
-                          timesteps_per_batch=1024,
-                          number_trajs=10,
-                          stochastic_policy=args.stochastic_policy,
-                          save=args.save_sample,
-                          reuse=True)
+    learn(env, policy_fn, dataset, max_iters=args.BC_max_iter, verbose=True)
 
-    if not os.path.exists("./log/BC"):
-        os.makedirs("./log/BC")
-    log_file = "run_bc_env_" + args.env_id + "_traj_limitation_" + \
-               str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
-    with open(os.path.join("log", "BC", log_file), 'w') as outfile:
-        for info in eval_infos:
-            outfile.write(info + "\n")
+    # eval_infos = runner(env,
+    #                       policy_fn,
+    #                       savedir_fname,
+    #                       timesteps_per_batch=1024,
+    #                       number_trajs=10,
+    #                       stochastic_policy=args.stochastic_policy,
+    #                       save=args.save_sample,
+    #                       reuse=True)
+
+    # if not os.path.exists("./log/BC"):
+    #     os.makedirs("./log/BC")
+    # log_file = "run_bc_env_" + args.env_id + "_traj_limitation_" + \
+    #            str(args.traj_limitation) + "_subsample_freq_" + str(args.subsample_freq) + '.txt'
+    # with open(os.path.join("log", "BC", log_file), 'w') as outfile:
+    #     for info in eval_infos:
+    #         outfile.write(info + "\n")
 
 
 if __name__ == '__main__':
