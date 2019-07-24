@@ -90,7 +90,7 @@ def main(args):
     eval_env = gym.make(args.env_id)
 
     logger.configure(os.path.join("log", "GAIL", args.env_id, "subsample_{}".format(args.subsample_freq),
-                                  "traj_{}".format(args.traj_limitation)), "seed_{}".format(args.seed))
+                                  "traj_{}".format(args.traj_limitation), "seed_{}".format(args.seed)))
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
