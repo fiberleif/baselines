@@ -207,7 +207,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           ):
 
     # configure log
-    logger.configure(dir=log_dir)
+    # logger.configure(dir=log_dir)
 
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()

@@ -37,7 +37,7 @@ def argsparser():
     # for evaluatation
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
-    parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=2e4)
+    parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=2e5)
     return parser.parse_args()
 
 

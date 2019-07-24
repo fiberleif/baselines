@@ -11,11 +11,11 @@ from itertools import product
 # }
 
 TRAJ_LIMITATIONS = {
-    "Hopper-v1": [25],
-    "HalfCheetah-v1": [25],
-    "Walker2d-v1": [25],
-    "Ant-v1": [25],
-    "Humanoid-v1": [240],
+    "Hopper-v1": [4],
+    "HalfCheetah-v1": [4],
+    "Walker2d-v1": [4],
+    "Ant-v1": [4],
+    "Humanoid-v1": [80],
 }
 
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     algo_hyper_dict['subsample_freq'] = [20]
     algo_hyper_dict['num_epoch'] = NUM_EPOCHS[args.env_id]
     algo_hyper_dict['timesteps_per_batch'] = TIMESTEPS_PER_BATCHS[args.env_id]
-    algo_hyper_dict['obs_normalize'] = [False, True]
+    algo_hyper_dict['obs_normalize'] = [True]
     algo_hyper_dict['seed'] = [0, 1, 2, 3, 4]
     algo_hyper_keys = list(algo_hyper_dict.keys())
 
