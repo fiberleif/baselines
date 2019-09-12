@@ -240,6 +240,10 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
     losses = [optimgain, meankl, entbonus, surrgain, meanent]
     loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
 
+    # from BC
+    stochastic = U.get_placeholder_cached(name="stochastic")
+    bc_loss = tf.reduce_mean(tf.square(ac-pi.ac))
+
     dist = meankl
 
     all_var_list = pi.get_trainable_variables()
@@ -248,6 +252,11 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
     assert len(var_list) == len(vf_var_list) + 1
     d_adam = MpiAdam(reward_giver.get_trainable_variables())
     vfadam = MpiAdam(vf_var_list)
+
+    # from BC
+    adam_epsilon = 1e-5
+    adam = MpiAdam(all_var_list, epsilon=adam_epsilon)
+    lossandgrad = U.function([ob, ac, stochastic], [bc_loss]+[U.flatgrad(bc_loss, all_var_list)])
 
     get_flat = U.GetFlat(var_list)
     set_from_flat = U.SetFromFlat(var_list)
@@ -404,6 +413,13 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                 else:
                     logger.log("couldn't compute a good step")
                     set_from_flat(thbefore)
+
+                # update policy via BC
+                ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob))
+                bc_loss, g = lossandgrad(ob_expert, ac_expert, True)
+                optim_stepsize = 3e-4
+                adam.update(g, optim_stepsize)
+
                 if nworkers > 1 and iters_so_far % 20 == 0:
                     paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum()))  # list of tuples
                     assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
