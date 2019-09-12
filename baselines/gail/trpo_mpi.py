@@ -109,8 +109,8 @@ def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batc
     logger.record_tabular('TimestepsUsed', (g_update_num + 1) * timesteps_per_batch)
     logger.dump_tabular()
 
-    visualizer.paint('return-average', {'x':(g_update_num + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
-    visualizer.draw_line('return-average', 'blue')
+    # visualizer.paint('return-average', {'x':(g_update_num + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
+    # visualizer.draw_line('return-average', 'blue')
 
 
 def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):

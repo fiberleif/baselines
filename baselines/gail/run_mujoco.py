@@ -16,8 +16,8 @@ from baselines import bench
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
-from baselines.gail.visualize import VisdomVisualizer
 from baselines.gail.delay_env_wrapper import DelayRewardWrapper
+
 
 def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
@@ -80,9 +80,10 @@ def main(args):
     set_global_seeds(args.seed)
 
     # configure visualize
-    visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-delay-" + str(args.delay_freq) +
-                                  "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
-    visualizer.initialize('return-average', 'blue')
+    # visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-delay-" + str(args.delay_freq) +
+    #                               "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
+    # visualizer.initialize('return-average', 'blue')
+    visualizer = None
 
     env = gym.make(args.env_id)
     env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
