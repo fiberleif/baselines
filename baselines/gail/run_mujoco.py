@@ -79,13 +79,7 @@ def get_task_name(args):
 def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
-
-    # configure visualize
-    # visualizer = VisdomVisualizer('guoqing-POfD', args.env_id + "-delay-" + str(args.delay_freq) +
-    #                               "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
-    # visualizer.initialize('return-average', 'blue')
     visualizer = None
-    logger.configure(os.path.join("log", "POfD_BC", args.env_id, "seed_{}".format(args.seed)))
 
     env = gym.make(args.env_id)
     env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
@@ -95,15 +89,14 @@ def main(args):
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    # env = bench.Monitor(env, logger.get_dir() and
-    #                     osp.join(logger.get_dir(), "monitor.json"))
+
     env.seed(args.seed)
     eval_env.seed(args.seed)
 
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
+    args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "seed_{}".format(args.seed))
 
     if args.task == 'train':
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
