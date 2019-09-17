@@ -7,6 +7,7 @@ import os.path as osp
 import logging
 import numpy as np
 import gym
+import os
 from mpi4py import MPI
 from tqdm import tqdm
 from baselines.gail import mlp_policy
@@ -84,6 +85,7 @@ def main(args):
     #                               "-reward-" + str(args.reward_coeff) + "-seed-" + str(args.seed))
     # visualizer.initialize('return-average', 'blue')
     visualizer = None
+    logger.configure(os.path.join("log", "POfD_BC", args.env_id, "seed_{}".format(args.seed)))
 
     env = gym.make(args.env_id)
     env = DelayRewardWrapper(env, args.delay_freq, args.max_path_length)
@@ -93,8 +95,8 @@ def main(args):
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
+    # env = bench.Monitor(env, logger.get_dir() and
+    #                     osp.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
     eval_env.seed(args.seed)
 
