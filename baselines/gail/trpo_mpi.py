@@ -106,7 +106,7 @@ def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batc
     logger.record_tabular('episode-length-max', np.max(episode_lengths))
     logger.record_tabular('episode-length-std', np.std(episode_lengths))
     logger.record_tabular("TimeElapsed", time.time() - tstart)
-    logger.record_tabular('TimestepsUsed', (g_update_num + 1) * timesteps_per_batch)
+    logger.record_tabular('total-samples', (g_update_num + 1) * timesteps_per_batch)
     logger.dump_tabular()
 
     # visualizer.paint('return-average', {'x':(g_update_num + 1) * timesteps_per_batch, 'y': np.mean(total_returns)})
@@ -433,7 +433,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                         vfadam.update(g, vf_stepsize)
 
             # evaluate current policy
-            if (g_step * epoch + g_step_num) % evaluation_freq == 0:
+            if (epoch + 1) % evaluation_freq == 0:
                 evaluate_policy(pi, reward_giver, eval_env, g_step * epoch + g_step_num, timesteps_per_batch, tstart, visualizer)
 
         # g_losses = meanlosses
