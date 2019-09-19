@@ -415,10 +415,11 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                     set_from_flat(thbefore)
 
                 # update policy via BC
-                ob_expert, ac_expert = expert_dataset.get_next_batch(256)
-                bc_loss, g = lossandgrad(ob_expert, ac_expert, True)
-                optim_stepsize = 3e-4
-                adam.update(g, optim_stepsize)
+                if epoch % 3 == 0:
+                    ob_expert, ac_expert = expert_dataset.get_next_batch(256)
+                    bc_loss, g = lossandgrad(ob_expert, ac_expert, True)
+                    optim_stepsize = 3e-4
+                    adam.update(g, optim_stepsize)
 
                 if nworkers > 1 and iters_so_far % 20 == 0:
                     paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum()))  # list of tuples
