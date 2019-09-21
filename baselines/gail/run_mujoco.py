@@ -49,7 +49,9 @@ def argsparser():
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
-    parser.add_argument('--reward_coeff', type=float, default=0.2)
+    parser.add_argument('--reward_coeff', type=float, default=0.0)
+    boolean_flag(parser, "reward_decay", default=False, help="Use decay mechanism to discrimnator reward")
+    boolean_flag(parser, "add_bc_loss", default=False, help="Use bc loss")
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
@@ -97,8 +99,9 @@ def main(args):
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "delay_{}".format(args.delay_freq),
-                                "subsample_{}".format(args.subsample_freq), "reward_coeff_{}".format(args.reward_coeff),
+    args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "delay_{}".format(args.delay_freq), "subsample_{}".format(args.subsample_freq),
+                                "traj_{}".format(args.traj_limitation), "add_bc_loss_{}".format(args.add_bc_loss),
+                                "reward_coeff_{}".format(args.reward_coeff), "reward_decay_{}".format(args.reward_decay),
                                 "seed_{}".format(args.seed))
 
     if args.task == 'train':
@@ -125,6 +128,8 @@ def main(args):
               visualizer,
               args.evaluation_freq,
               args.timesteps_per_batch,
+              args.reward_decay,
+              args.add_bc_loss,
               task_name,
               )
     elif args.task == 'evaluate':
@@ -144,7 +149,7 @@ def main(args):
 def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, reward_coeff, num_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, num_epochs, visualizer, evaluation_freq, timesteps_per_batch,
-          task_name = None):
+          reward_decay, add_bc_loss, task_name = None):
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
@@ -177,6 +182,8 @@ def train(env, eval_env, seed, policy_fn, reward_giver, dataset, algo,
                        num_epochs=num_epochs,
                        visualizer=visualizer,
                        evaluation_freq=evaluation_freq,
+                       reward_decay=reward_decay,
+                       add_bc_loss=add_bc_loss,
                        task_name=task_name)
     else:
         raise NotImplementedError

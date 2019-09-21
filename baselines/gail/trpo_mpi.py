@@ -113,9 +113,9 @@ def evaluate_policy(pi, reward_giver, eval_env, g_update_num, timesteps_per_batc
     # visualizer.draw_line('return-average', 'blue')
 
 
-def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic):
-
+def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochastic, reward_decay, num_epochs):
     # Initialize state variables
+    epoch = 0
     t = 0
     ac = env.action_space.sample()
     new = True
@@ -155,6 +155,7 @@ def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochas
             ep_rets = []
             ep_true_rets = []
             ep_lens = []
+            epoch += 1
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
@@ -163,7 +164,11 @@ def traj_segment_generator(pi, env, reward_giver, reward_coeff, horizon, stochas
         prevacs[i] = prevac
 
         ob, true_rew, new, _ = env.step(ac)
-        rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+
+        if reward_decay:
+            rew = (1 - epoch / num_epochs) * reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
+        else:
+            rew = reward_coeff * reward_giver.get_reward(ob, ac) + true_rew
 
         rews[i] = rew
         true_rews[i] = true_rew
@@ -203,7 +208,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
           task_name, gamma, lam,
           max_kl, cg_iters, cg_damping=1e-2,
           vf_stepsize=3e-4, d_stepsize=3e-4, vf_iters=3,
-          max_timesteps=0, max_episodes=0, max_iters=0, num_epochs=1000,
+          max_timesteps=0, max_episodes=0, max_iters=0, num_epochs=1000, reward_decay=False, add_bc_loss=False,
           callback=None
           ):
 
@@ -307,7 +312,8 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, reward_giver, reward_coeff, timesteps_per_batch, stochastic=True,
+                                     reward_decay=reward_decay, num_epochs=num_epochs)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -419,11 +425,11 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
                     set_from_flat(thbefore)
 
                 # # update policy via BC
-                # if epoch % 3 == 0:
-                #     ob_expert, ac_expert = expert_dataset.get_next_batch(256)
-                #     bc_loss, g = lossandgrad(ob_expert, ac_expert, True)
-                #     optim_stepsize = 3e-4
-                #     adam.update(g, optim_stepsize)
+                if add_bc_loss:
+                    ob_expert, ac_expert = expert_dataset.get_next_batch(1000)
+                    bc_loss, g = lossandgrad(ob_expert, ac_expert, True)
+                    optim_stepsize = 3e-4
+                    adam.update(g, optim_stepsize)
 
                 if nworkers > 1 and iters_so_far % 20 == 0:
                     paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum()))  # list of tuples
