@@ -1,6 +1,6 @@
 #!/bin/bash
-SEEDS="0 1"
+SEEDS="0"
 for SEED in $SEEDS
 do
-    CUDA_VISIBLE_DEVICES=3 python baselines/gail/run_mujoco.py --env_id Humanoid-v1 --expert_path "dataset/humanoid.npz" --num_epoch 2000 --traj_limitation 80 --reward_coeff 10.0 --seed $SEED
+    CUDA_VISIBLE_DEVICES=3 python baselines/gail/run_mujoco.py --env_id Humanoid-v1 --expert_path "dataset/humanoid.npz" --num_epoch 2000 --traj_limitation 80 --reward_coeff 10.0 --seed $SEED --evaluation_freq 20
 done
