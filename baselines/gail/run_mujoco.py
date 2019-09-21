@@ -98,7 +98,8 @@ def main(args):
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
     args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "delay_{}".format(args.delay_freq),
-                                "subsample_{}".format(args.subsample_freq), "seed_{}".format(args.seed))
+                                "subsample_{}".format(args.subsample_freq), "reward_coeff_{}".format(args.reward_coeff),
+                                "seed_{}".format(args.seed))
 
     if args.task == 'train':
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
