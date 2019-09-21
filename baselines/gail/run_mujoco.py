@@ -37,6 +37,7 @@ def argsparser():
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
+    parser.add_argument('--subsample_freq', type=int, default=20)
     # Optimization Configuration
     parser.add_argument('--timesteps_per_batch', help='number of timesteps in each batch', type=int, default=1000)
     parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
@@ -48,7 +49,7 @@ def argsparser():
     parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
-    parser.add_argument('--reward_coeff', type=float, default=0.1)
+    parser.add_argument('--reward_coeff', type=float, default=0.2)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
     # Traing Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
@@ -96,10 +97,11 @@ def main(args):
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
     args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "delay_{}".format(args.delay_freq), "seed_{}".format(args.seed))
+    args.log_dir = os.path.join("log", "POfD_BC", args.env_id, "delay_{}".format(args.delay_freq),
+                                "subsample_{}".format(args.subsample_freq), "seed_{}".format(args.seed))
 
     if args.task == 'train':
-        dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+        dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation, data_subsample_freq=args.subsample_freq)
         reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
         train(env,
               eval_env,
