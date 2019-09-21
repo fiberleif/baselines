@@ -365,7 +365,7 @@ def learn(env, eval_env, policy_func, reward_giver, expert_dataset, rank,
             total_ep_true_rets.append(seg["ep_true_rets"])
 
             # print d_rews vs true_rews
-            print("avg_d_return:", np.mean(seg["ep_rets"]))
+            print("avg_d_return:", np.mean(seg["ep_rets"]) - np.mean(seg["ep_true_rets"]))
             print("avg_true_return", np.mean(seg["ep_true_rets"]))
 
             add_vtarg_and_adv(seg, gamma, lam)
